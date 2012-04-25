@@ -4,6 +4,7 @@ use strict;
 use Sys::Hostname;
 use IO::Socket::INET;
 use IO::Select;
+use Cwd;
 
 use TAP::Parser::Iterator::Process ();
 
@@ -36,8 +37,10 @@ Make a new worker.
 
 sub _initialize {
     my ( $self, $args ) = @_;
-    $self->{spec} = $$args;   
-    return unless($self->SUPER::_initialize({ command => [$self->initialize_worker_command->[0]]}));
+    $self->{spec} = $$args;
+    return
+        unless (
+        $self->SUPER::_initialize( { command => [ $self->initialize_worker_command->[0] ] } ) );
     return $self;
 }
 
@@ -51,22 +54,26 @@ For your specific command, you can subclass this to put your command in this met
 
 sub initialize_worker_command {
     my $self = shift;
-    if(@_) {
-       $self->{initialize_worker_command} = shift;
+    if (@_) {
+        $self->{initialize_worker_command} = shift;
     }
-    unless($self->{initialize_worker_command}) {
+    unless ( $self->{initialize_worker_command} ) {
+
         #LSF: Get hostname and port.
-	my @args = ('-PDistributed="--manager=' . $self->{spec} . '"');
-	#LSF: Find the library path.
-	my $path;
-	my $package = __PACKAGE__;
-	$package =~ s/::/\//g;
-	$package .= '.pm';
-	if($INC{$package}) {
-	   $path = $INC{$package};
-	   $path =~ s/$package//;
-	}
-	$self->{initialize_worker_command} = ["perl -I $path /usr/local/bin/prove " . (join ' ',  @args, "")];
+        my @args = ( '-PDistributed="--manager=' . $self->{spec} . '"' );
+
+        #LSF: Find the library path.
+        my $path;
+        my $package = __PACKAGE__;
+        $package =~ s/::/\//g;
+        $package .= '.pm';
+        if ( $INC{$package} ) {
+            $path = $INC{$package};
+            $path =~ s/$package//;
+        }
+        my $abs_path = Cwd::abs_path($path);
+        $self->{initialize_worker_command}
+            = [ "perl -I $abs_path -S prove " . ( join ' ', @args, "" ) ];
     }
     return $self->{initialize_worker_command};
 }

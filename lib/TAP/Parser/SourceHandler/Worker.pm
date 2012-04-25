@@ -67,9 +67,13 @@ sub can_handle {
 
     #LSF: Do not handle the IO::Handle object.
     return 0
-      if $meta->{is_object}
-          && UNIVERSAL::isa( $src->raw, 'IO::Handle' );
-    return 0.9;
+        if $meta->{is_object}
+            && UNIVERSAL::isa( $src->raw, 'IO::Handle' );
+    my $package = __PACKAGE__;
+    my $tmp     = $class;
+    $tmp =~ s/^$package//;
+    my @number = split '::', $tmp;
+    return '0.9' . scalar(@number);
 }
 
 =head1 SYNOPSIS
@@ -86,13 +90,16 @@ Returns a new L<TAP::Parser::Iterator::Worker> for the source.
 
 sub make_iterator {
     my ( $class, $source ) = @_;
-    $number_of_workers = $source->{config}->{Worker}->{number_of_workers};
+    my $package = __PACKAGE__;
+    my $tmp     = $class;
+    $tmp =~ s/^$package//;
+    my $option_name = 'Worker' . $tmp;
+    $number_of_workers = $source->{config}->{$option_name}->{number_of_workers};
 
     my $worker = $class->get_a_worker;
     if ($worker) {
         $worker->print( ${ $source->raw } . "\n" );
-        return TAP::Parser::Iterator::Stream::Selectable->new(
-            { handle => $worker } );
+        return TAP::Parser::Iterator::Stream::Selectable->new( { handle => $worker } );
     }
 
     #LSF: Pass through everything now.
@@ -111,10 +118,10 @@ sub get_a_worker {
     my $class = shift;
     if ( @workers < $number_of_workers ) {
         my $listener = $class->listener;
-        my $spec =
-          ( $listener->sockhost eq '0.0.0.0' ? hostname : $listener->sockhost )
-          . ':'
-          . $listener->sockport;
+        my $spec = ( $listener->sockhost eq '0.0.0.0' ? hostname : $listener->sockhost ) . ':'
+            . $listener->sockport;
+        my $iterator_class = $class->iterator_class;
+        eval "use $iterator_class;";
         my $iterator = $class->iterator_class->new( \$spec );
         push @workers, $iterator;
     }
@@ -148,6 +155,10 @@ to L<TAP::Parser::Iterator::Worker>.
 =cut
 
 use constant iterator_class => 'TAP::Parser::Iterator::Worker';
+
+sub workers {
+    return @workers;
+}
 
 1;
 

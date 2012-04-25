@@ -6,6 +6,8 @@ use Carp;
 use Test::More;
 use IO::Socket::INET;
 
+use vars qw($VERSION @ISA);
+
 =head1 NAME
 
 App::Prove::Plugin::Distributed - to distribute test job using client and server model.
@@ -41,11 +43,12 @@ sub load {
             't|distributed-type=s' => \$app->{distributed_type},
         ) or croak('Unable to continue');
     }
-
-    if ( $app->{argv}->[0] =~ /--worker-option=number_of_workers=(\d+)/ ) {
+    my $type = $app->{distributed_type};
+    my $option_name = '--worker' . ($type ? '-' . lc($type) : '') . '-option';
+    if ( $app->{argv}->[0] =~ /$option_name=number_of_workers=(\d+)/ ) {
         if ( $app->{jobs} ) {
             die
-"-j and --worker-option=number_of_workers are mutually exclusive.\n";
+"-j and $option_name=number_of_workers are mutually exclusive.\n";
         }
         else {
             $app->{jobs} = $1;
@@ -53,7 +56,7 @@ sub load {
     }
     elsif ( $app->{jobs} ) {
         unshift @{ $app->{argv} },
-          '--worker-option=number_of_workers=' . $app->{jobs};
+          "$option_name=number_of_workers=" . $app->{jobs};
     }
 
     unless ( $app->{manager} ) {
