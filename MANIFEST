@@ -1,0 +1,6 @@
+Changes
+Makefile.PL
+MANIFEST
+README
+t/App-Prove-Plugin-Distributed.t
+lib/App/Prove/Plugin/Distributed.pm
