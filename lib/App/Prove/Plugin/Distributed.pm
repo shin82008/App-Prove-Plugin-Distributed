@@ -47,7 +47,7 @@ sub load {
             'manager=s'          => \$app->{manager},
             'distributed-type=s' => \$app->{distributed_type},
             'start-up=s'         => \$app->{start_up},
-            'tear-down=s'        => \$app->{tear_up},
+            'tear-down=s'        => \$app->{tear_down},
         ) or croak('Unable to continue');
     }
     my $type = $app->{distributed_type};
@@ -65,6 +65,12 @@ sub load {
     else {
         $app->{jobs} ||= 1;
         unshift @{ $app->{argv} }, "$option_name=number_of_workers=" . $app->{jobs};
+    }
+
+    for (qw(start_up tear_down)) {
+        if ( $app->{$_} ) {
+            unshift @{ $app->{argv} }, "$option_name=$_=" . $app->{$_};
+        }
     }
 
     unless ( $app->{manager} ) {
