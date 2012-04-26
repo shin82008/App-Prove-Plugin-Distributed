@@ -5,6 +5,7 @@ use Getopt::Long;
 use Carp;
 use Test::More;
 use IO::Socket::INET;
+use File::Spec;
 
 use vars qw($VERSION @ISA);
 
@@ -182,6 +183,8 @@ sub _do {
     my $proto    = shift;
     my $job_info = shift;
 
+    my $cwd = File::Spec->rel2abs('.');
+
     #LSF: The code from here to exit is from  L<FCGI::Daemon> module.
     local *CORE::GLOBAL::exit = sub { die 'notr3a11yeXit' };
     local $0 = $job_info;    #fixes FindBin (in English $0 means $PROGRAM_NAME)
@@ -191,6 +194,8 @@ sub _do {
         local @ARGV = ();
         do $0;                   # do $0; could be enough for strict scripts
     }
+    chdir($cwd);
+
     if ($EVAL_ERROR) {
         $EVAL_ERROR =~ s{\n+\z}{};
         unless ( $EVAL_ERROR =~ m{^notr3a11yeXit} ) {
