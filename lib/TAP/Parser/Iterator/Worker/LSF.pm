@@ -11,10 +11,14 @@ use vars qw($VERSION @ISA);
 sub _initialize {
     my ( $self, $args ) = @_;
     $self->SUPER::_initialize($args);
-    my $out = $self->{out};
+    my $out          = $self->{out};
     my $lsf_job_info = <$out>;
-    if($lsf_job_info =~ /Job <(\d+)>/) {
-       $self->{lsf_job_id} = $1;
+    if ( $lsf_job_info && $lsf_job_info =~ /Job <(\d+)>/ ) {
+        $self->{lsf_job_id} = $1;
+    }
+    else {
+        print STDERR "failed to start an LSF job.\n";
+        return;
     }
     return $self;
 }
@@ -40,7 +44,7 @@ For your specific command, you can subclass this to put your command in this met
 =cut
 
 sub initialize_worker_command {
-    my $self = shift;
+    my $self     = shift;
     my $commands = $self->SUPER::initialize_worker_command;
     $commands->[0] = 'bsub ' . $commands->[0];
     return $commands;

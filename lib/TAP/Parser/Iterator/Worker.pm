@@ -37,12 +37,15 @@ Make a new worker.
 
 sub _initialize {
     my ( $self, $args ) = @_;
-    $self->{spec} = $args->{spec};
-    $self->{start_up} = $args->{start_up};
+    $self->{spec}      = $args->{spec};
+    $self->{start_up}  = $args->{start_up};
     $self->{tear_down} = $args->{tear_down};
     return
-        unless (
-        $self->SUPER::_initialize( { command => [ $self->initialize_worker_command->[0] ] } ) );
+      unless (
+        $self->SUPER::_initialize(
+            { command => [ $self->initialize_worker_command->[0] ] }
+        )
+      );
     return $self;
 }
 
@@ -62,17 +65,18 @@ sub initialize_worker_command {
     unless ( $self->{initialize_worker_command} ) {
 
         #LSF: Get hostname and port.
-        my @args = ( '--manager=' . $self->{spec} );
-        my $type = ref($self);
+        my @args    = ( '--manager=' . $self->{spec} );
+        my $type    = ref($self);
         my $package = __PACKAGE__;
         $type =~ s/^$package//;
         $type =~ s/::/-/g;
-        #my $option_name = '--worker' . ( $type ? '-' . lc($type) : '' ) . '-option';
+
+   #my $option_name = '--worker' . ( $type ? '-' . lc($type) : '' ) . '-option';
         my $option_name = '--worker-option';
         for my $option (qw(start_up tear_down)) {
-           my $name = $option;
-           $name =~ s/_/-/g;
-           push @args, "--$name=" . $self->{$option} if($self->{$option});
+            my $name = $option;
+            $name =~ s/_/-/g;
+            push @args, "--$name=" . $self->{$option} if ( $self->{$option} );
         }
 
         #LSF: Find the library path.
@@ -84,8 +88,10 @@ sub initialize_worker_command {
             $path =~ s/$package//;
         }
         my $abs_path = Cwd::abs_path($path);
-        $self->{initialize_worker_command}
-            = [ "perl -I $abs_path -S prove -PDistributed='" . ( join ',', @args) . "'" ];
+        $self->{initialize_worker_command} =
+          [     "perl -I $abs_path -S prove -PDistributed='"
+              . ( join ',', @args )
+              . "'" ];
     }
     return $self->{initialize_worker_command};
 }

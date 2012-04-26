@@ -37,40 +37,49 @@ sub load {
 
     {
         local @ARGV = @args;
+
+        push @ARGV, grep { /^--/ } @{ $app->{argv} };
+        $app->{argv} = [ grep { !/^--/ } @{ $app->{argv} } ];
         Getopt::Long::Configure(qw(no_ignore_case bundling pass_through));
 
         # Don't add coderefs to GetOptions
         GetOptions(
-            'm|manager=s'          => \$app->{manager},
-            't|distributed-type=s' => \$app->{distributed_type},
-            's|start-up=s'         => \$app->{start_up},
-            'd|tear-down=s'        => \$app->{tear_up},
+            'manager=s'          => \$app->{manager},
+            'distributed-type=s' => \$app->{distributed_type},
+            'start-up=s'         => \$app->{start_up},
+            'tear-down=s'        => \$app->{tear_up},
         ) or croak('Unable to continue');
     }
     my $type = $app->{distributed_type};
     my $option_name = '--worker' . ( $type ? '-' . lc($type) : '' ) . '-option';
-    if ( $app->{argv}->[0] =~ /$option_name=number_of_workers=(\d+)/ ) {
+    if (   $app->{argv}->[0]
+        && $app->{argv}->[0] =~ /$option_name=number_of_workers=(\d+)/ )
+    {
         if ( $app->{jobs} ) {
-            die "-j and $option_name=number_of_workers are mutually exclusive.\n";
+            die
+              "-j and $option_name=number_of_workers are mutually exclusive.\n";
         }
         else {
             $app->{jobs} = $1;
         }
     }
-    elsif ( $app->{jobs} ) {
-        unshift @{ $app->{argv} }, "$option_name=number_of_workers=" . $app->{jobs};
+    else {
+        $app->{jobs} ||= 1;
+        unshift @{ $app->{argv} },
+          "$option_name=number_of_workers=" . $app->{jobs};
     }
 
     unless ( $app->{manager} ) {
 
         #LSF: Set the iterator.
         $app->sources(
-            [   'Worker'
-                    . (
+            [
+                'Worker'
+                  . (
                     $app->{distributed_type}
                     ? '::' . $app->{distributed_type}
                     : ''
-                    )
+                  )
             ]
         );
         return 1;

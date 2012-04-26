@@ -67,8 +67,8 @@ sub can_handle {
 
     #LSF: Do not handle the IO::Handle object.
     return 0
-        if $meta->{is_object}
-            && UNIVERSAL::isa( $src->raw, 'IO::Handle' );
+      if $meta->{is_object}
+          && UNIVERSAL::isa( $src->raw, 'IO::Handle' );
     my $package = __PACKAGE__;
     my $tmp     = $class;
     $tmp =~ s/^$package//;
@@ -89,17 +89,28 @@ Returns a new L<TAP::Parser::Iterator::Worker> for the source.
 =cut
 
 sub make_iterator {
-    my ( $class, $source ) = @_;
-    my $package = __PACKAGE__;
-    my $tmp     = $class;
-    $tmp =~ s/^$package//;
-    my $option_name = 'Worker' . $tmp;
-    $number_of_workers = $source->{config}->{$option_name}->{number_of_workers};
+    my ( $class, $source, $retry ) = @_;
 
     my $worker = $class->get_a_worker($source);
+
     if ($worker) {
+        $worker->autoflush(1);
         $worker->print( ${ $source->raw } . "\n" );
-        return TAP::Parser::Iterator::Stream::Selectable->new( { handle => $worker } );
+        return TAP::Parser::Iterator::Stream::Selectable->new(
+            { handle => $worker } );
+    }
+    elsif ( !$retry ) {
+
+        #LSF: Let check the worker.
+        my @active_workers = $class->get_active_workers();
+
+        #unless(@active_workers) {
+        #   die "failed to find any worker.\n";
+        #}
+        @workers = @active_workers;
+
+        #LSF: Retry one more time.
+        return $class->make_iterator( $source, 1 );
     }
 
     #LSF: Pass through everything now.
@@ -115,22 +126,25 @@ Returns a new workder L<IO::Socket>
 =cut
 
 sub get_a_worker {
-    my $class = shift;
-    my $source = shift;
+    my $class   = shift;
+    my $source  = shift;
     my $package = __PACKAGE__;
     my $tmp     = $class;
     $tmp =~ s/^$package//;
     my $option_name = 'Worker' . $tmp;
     $number_of_workers = $source->{config}->{$option_name}->{number_of_workers};
-    my $startup = $source->{config}->{$option_name}->{start_up};
+    my $startup  = $source->{config}->{$option_name}->{start_up};
     my $teardown = $source->{config}->{$option_name}->{tear_down};
-    my %args = ();
-    $args{start_up} = $startup if($startup);
-    $args{tear_down} = $teardown if($teardown);
+    my %args     = ();
+    $args{start_up}  = $startup  if ($startup);
+    $args{tear_down} = $teardown if ($teardown);
+
     if ( @workers < $number_of_workers ) {
         my $listener = $class->listener;
-        my $spec = ( $listener->sockhost eq '0.0.0.0' ? hostname : $listener->sockhost ) . ':'
-            . $listener->sockport;
+        my $spec =
+          ( $listener->sockhost eq '0.0.0.0' ? hostname : $listener->sockhost )
+          . ':'
+          . $listener->sockport;
         my $iterator_class = $class->iterator_class;
         eval "use $iterator_class;";
         $args{spec} = $spec;
@@ -152,8 +166,9 @@ sub listener {
     my $class = shift;
     unless ($listener) {
         $listener = IO::Socket::INET->new(
-            Listen => 5,
-            Proto  => 'tcp'
+            Listen  => 5,
+            Proto   => 'tcp',
+            Timeout => 40,
         );
     }
     return $listener;
@@ -168,8 +183,49 @@ to L<TAP::Parser::Iterator::Worker>.
 
 use constant iterator_class => 'TAP::Parser::Iterator::Worker';
 
+=head3 C<workers>
+
+Returns list of workers.
+
+=cut
+
 sub workers {
     return @workers;
+}
+
+=head3 C<get_active_workers>
+  
+  my @active_workers = $class->get_active_workers;
+
+Returns list of active workers.
+
+=cut
+
+sub get_active_workers {
+    my $class   = shift;
+    my @workers = $class->workers;
+    return unless (@workers);
+    my @active;
+    for my $worker (@workers) {
+        next unless ( $worker && $worker->{sel} );
+        my @handles = $worker->{sel}->can_read();
+        for my $handle (@handles) {
+            if ( $handle == $worker->{err} ) {
+                my $error = '';
+                if ( $handle->read( $error, 640000 ) ) {
+                    chomp($error);
+                    print STDERR "Worker with error [$error].\n";
+
+                    #LSF: Close the handle.
+                    $handle->close();
+                    $worker = undef;
+                    last;
+                }
+            }
+        }
+        push @active, $worker if ($worker);
+    }
+    return @active;
 }
 
 1;
