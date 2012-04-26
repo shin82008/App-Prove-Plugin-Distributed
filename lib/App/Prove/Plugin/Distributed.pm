@@ -186,7 +186,11 @@ sub _do {
     local *CORE::GLOBAL::exit = sub { die 'notr3a11yeXit' };
     local $0 = $job_info;    #fixes FindBin (in English $0 means $PROGRAM_NAME)
     no strict;               # default for Perl5
-    do $0;                   # do $0; could be enough for strict scripts
+    {
+        package main;
+        local @ARGV = ();
+        do $0;                   # do $0; could be enough for strict scripts
+    }
     if ($EVAL_ERROR) {
         $EVAL_ERROR =~ s{\n+\z}{};
         unless ( $EVAL_ERROR =~ m{^notr3a11yeXit} ) {
