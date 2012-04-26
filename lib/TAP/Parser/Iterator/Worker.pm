@@ -40,12 +40,10 @@ sub _initialize {
     $self->{spec}      = $args->{spec};
     $self->{start_up}  = $args->{start_up};
     $self->{tear_down} = $args->{tear_down};
+    $self->{switches}  = $args->{switches};
     return
-      unless (
-        $self->SUPER::_initialize(
-            { command => [ $self->initialize_worker_command->[0] ] }
-        )
-      );
+        unless (
+        $self->SUPER::_initialize( { command => [ $self->initialize_worker_command->[0] ] } ) );
     return $self;
 }
 
@@ -71,7 +69,7 @@ sub initialize_worker_command {
         $type =~ s/^$package//;
         $type =~ s/::/-/g;
 
-   #my $option_name = '--worker' . ( $type ? '-' . lc($type) : '' ) . '-option';
+        #my $option_name = '--worker' . ( $type ? '-' . lc($type) : '' ) . '-option';
         my $option_name = '--worker-option';
         for my $option (qw(start_up tear_down)) {
             my $name = $option;
@@ -87,11 +85,13 @@ sub initialize_worker_command {
             $path = $INC{$package};
             $path =~ s/$package//;
         }
+        my $switches = '';
+        if ( $self->{switches} ) {
+            $switches = join ' ', @{ $self->{switches} };
+        }
         my $abs_path = Cwd::abs_path($path);
-        $self->{initialize_worker_command} =
-          [     "perl -I $abs_path -S prove -PDistributed='"
-              . ( join ',', @args )
-              . "'" ];
+        $self->{initialize_worker_command} = [
+            "perl -I $abs_path -S prove $switches -PDistributed='" . ( join ',', @args ) . "'" ];
     }
     return $self->{initialize_worker_command};
 }

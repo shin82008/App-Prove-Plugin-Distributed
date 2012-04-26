@@ -38,7 +38,7 @@ sub load {
     {
         local @ARGV = @args;
 
-        push @ARGV, grep { /^--/ } @{ $app->{argv} };
+        push @ARGV, grep {/^--/} @{ $app->{argv} };
         $app->{argv} = [ grep { !/^--/ } @{ $app->{argv} } ];
         Getopt::Long::Configure(qw(no_ignore_case bundling pass_through));
 
@@ -56,8 +56,7 @@ sub load {
         && $app->{argv}->[0] =~ /$option_name=number_of_workers=(\d+)/ )
     {
         if ( $app->{jobs} ) {
-            die
-              "-j and $option_name=number_of_workers are mutually exclusive.\n";
+            die "-j and $option_name=number_of_workers are mutually exclusive.\n";
         }
         else {
             $app->{jobs} = $1;
@@ -65,24 +64,39 @@ sub load {
     }
     else {
         $app->{jobs} ||= 1;
-        unshift @{ $app->{argv} },
-          "$option_name=number_of_workers=" . $app->{jobs};
+        unshift @{ $app->{argv} }, "$option_name=number_of_workers=" . $app->{jobs};
     }
 
     unless ( $app->{manager} ) {
 
         #LSF: Set the iterator.
         $app->sources(
-            [
-                'Worker'
-                  . (
+            [   'Worker'
+                    . (
                     $app->{distributed_type}
                     ? '::' . $app->{distributed_type}
                     : ''
-                  )
+                    )
             ]
         );
         return 1;
+    }
+
+    my $original_perl_5_lib = $ENV{PERL5LIB};
+    my @original_include    = @INC;
+    if ( $app->{includes} ) {
+        my @includes = split /:/, $original_perl_5_lib;
+        unshift @includes, @original_include;
+        unshift @includes, @{ $app->{includes} };
+        my %found;
+        my @wanted;
+        for my $include (@includes) {
+            unless ( $found{$include} ) {
+                push @wanted, $include;
+            }
+        }
+        $ENV{PERL5LIB} = join ':', @wanted;
+        @INC = @wanted;
     }
 
     #LSF: Start up.
@@ -98,12 +112,15 @@ sub load {
         $class->start_server( $app->{manager} );
     }
 
+    #LSF: Anything below here might not be called.
     #LSF: Tear down
     if ( $app->{tear_down} ) {
         unless ( $class->_do( $app->{tear_down} ) ) {
             die "tear down error with error [$error].\n";
         }
     }
+    $ENV{PER5LIB} = $original_perl_5_lib;
+    @INC = @original_include;
     return 1;
 }
 

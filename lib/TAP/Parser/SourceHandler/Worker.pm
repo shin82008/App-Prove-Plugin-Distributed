@@ -67,8 +67,8 @@ sub can_handle {
 
     #LSF: Do not handle the IO::Handle object.
     return 0
-      if $meta->{is_object}
-          && UNIVERSAL::isa( $src->raw, 'IO::Handle' );
+        if $meta->{is_object}
+            && UNIVERSAL::isa( $src->raw, 'IO::Handle' );
     my $package = __PACKAGE__;
     my $tmp     = $class;
     $tmp =~ s/^$package//;
@@ -96,8 +96,7 @@ sub make_iterator {
     if ($worker) {
         $worker->autoflush(1);
         $worker->print( ${ $source->raw } . "\n" );
-        return TAP::Parser::Iterator::Stream::Selectable->new(
-            { handle => $worker } );
+        return TAP::Parser::Iterator::Stream::Selectable->new( { handle => $worker } );
     }
     elsif ( !$retry ) {
 
@@ -138,13 +137,12 @@ sub get_a_worker {
     my %args     = ();
     $args{start_up}  = $startup  if ($startup);
     $args{tear_down} = $teardown if ($teardown);
+    $args{switches}  = $source->{switches};
 
     if ( @workers < $number_of_workers ) {
         my $listener = $class->listener;
-        my $spec =
-          ( $listener->sockhost eq '0.0.0.0' ? hostname : $listener->sockhost )
-          . ':'
-          . $listener->sockport;
+        my $spec = ( $listener->sockhost eq '0.0.0.0' ? hostname : $listener->sockhost ) . ':'
+            . $listener->sockport;
         my $iterator_class = $class->iterator_class;
         eval "use $iterator_class;";
         $args{spec} = $spec;
