@@ -96,7 +96,7 @@ sub make_iterator {
     my $option_name = 'Worker' . $tmp;
     $number_of_workers = $source->{config}->{$option_name}->{number_of_workers};
 
-    my $worker = $class->get_a_worker;
+    my $worker = $class->get_a_worker($source);
     if ($worker) {
         $worker->print( ${ $source->raw } . "\n" );
         return TAP::Parser::Iterator::Stream::Selectable->new( { handle => $worker } );
@@ -116,13 +116,25 @@ Returns a new workder L<IO::Socket>
 
 sub get_a_worker {
     my $class = shift;
+    my $source = shift;
+    my $package = __PACKAGE__;
+    my $tmp     = $class;
+    $tmp =~ s/^$package//;
+    my $option_name = 'Worker' . $tmp;
+    $number_of_workers = $source->{config}->{$option_name}->{number_of_workers};
+    my $startup = $source->{config}->{$option_name}->{start_up};
+    my $teardown = $source->{config}->{$option_name}->{tear_down};
+    my %args = ();
+    $args{start_up} = $startup if($startup);
+    $args{tear_down} = $teardown if($teardown);
     if ( @workers < $number_of_workers ) {
         my $listener = $class->listener;
         my $spec = ( $listener->sockhost eq '0.0.0.0' ? hostname : $listener->sockhost ) . ':'
             . $listener->sockport;
         my $iterator_class = $class->iterator_class;
         eval "use $iterator_class;";
-        my $iterator = $class->iterator_class->new( \$spec );
+        $args{spec} = $spec;
+        my $iterator = $class->iterator_class->new( \%args );
         push @workers, $iterator;
     }
     return $listener->accept();
