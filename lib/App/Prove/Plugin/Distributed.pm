@@ -51,6 +51,7 @@ sub load {
             'start-up=s'         => \$app->{start_up},
             'tear-down=s'        => \$app->{tear_down},
             'error-log=s'        => \$app->{error_log},
+            'detach'             => \$app->{detach},
         ) or croak('Unable to continue');
     }
     my $type = $app->{distributed_type};
@@ -70,7 +71,7 @@ sub load {
         unshift @{ $app->{argv} }, "$option_name=number_of_workers=" . $app->{jobs};
     }
 
-    for (qw(start_up tear_down error_log)) {
+    for (qw(start_up tear_down error_log detach)) {
         if ( $app->{$_} ) {
             unshift @{ $app->{argv} }, "$option_name=$_=" . $app->{$_};
         }
@@ -119,8 +120,11 @@ sub load {
 
         #LSF: The is the server to serve the test.
         $class->start_server(
+            app  => $app,
             spec => $app->{manager},
-            ( $app->{error_log} ? ( error_log => $app->{error_log} ) : () )
+            ( $app->{error_log} ? ( error_log => $app->{error_log} ) : () ),
+            ( $app->{detach}    ? ( detach    => $app->{detach} )    : () ),
+
         );
     }
 
@@ -147,7 +151,7 @@ Parameter is the contoller peer address.
 sub start_server {
     my $class = shift;
     my %args  = @_;
-    my ( $spec, $error_log ) = @args{ 'spec', 'error_log' };
+    my ( $app, $spec, $error_log, $detach ) = @args{ 'app', 'spec', 'error_log', 'detach' };
 
     my $socket = IO::Socket::INET->new(
         PeerAddr => $spec,
@@ -173,8 +177,24 @@ sub start_server {
         $builder->output($socket);
         $builder->failure_output($socket);
         $builder->todo_output($socket);
-        *STDERR = $socket;
-        *STDOUT = $socket;
+        *STDERR     = $socket;
+        *STDOUT     = $socket;
+        if ($detach) {
+            my $command = join ' ',
+                ( $job_info, ( $app->{test_args} ? @{ $app->{test_args} } : () ) );
+            {
+                require TAP::Parser::Source;
+                require TAP::Parser::SourceHandler::Worker;
+                my $source = TAP::Parser::Source->new();
+                $source->raw( \$job_info )->assemble_meta;
+                my $vote = TAP::Parser::SourceHandler::Worker->can_handle($source);
+                if ( $vote >= 0.75 ) {
+                    $command = $^X . ' ' . $command;
+                }
+                print $socket `$command`;
+            }
+            exit;
+        }
         unless ( $class->_do($job_info) ) {
             print $socket "$0\n$error\n\b";
             if ($error_log) {

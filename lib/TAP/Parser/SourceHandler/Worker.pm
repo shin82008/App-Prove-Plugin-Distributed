@@ -137,11 +137,14 @@ sub get_a_worker {
     my $startup   = $source->{config}->{$option_name}->{start_up};
     my $teardown  = $source->{config}->{$option_name}->{tear_down};
     my $error_log = $source->{config}->{$option_name}->{error_log};
+    my $detach    = $source->{config}->{$option_name}->{detach};
     my %args      = ();
-    $args{start_up}  = $startup   if ($startup);
-    $args{tear_down} = $teardown  if ($teardown);
-    $args{error_log} = $error_log if ($error_log);
+    $args{start_up}  = $startup             if ($startup);
+    $args{tear_down} = $teardown            if ($teardown);
+    $args{detach}    = $detach              if ($detach);
+    $args{error_log} = $error_log           if ($error_log);
     $args{switches}  = $source->{switches};
+    $args{test_args} = $source->{test_args} if ( $source->{test_args} );
 
     if ( @workers < $number_of_workers ) {
         my $listener = $class->listener;
