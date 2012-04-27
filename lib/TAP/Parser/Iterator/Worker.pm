@@ -78,7 +78,7 @@ sub initialize_worker_command {
         for my $option (qw(start_up tear_down error_log detach)) {
             my $name = $option;
             $name =~ s/_/-/g;
-            if($option eq 'detach') {
+            if($option eq 'detach' && $self->{$option}) {
                push @args, "--$name";
                next;
             }
