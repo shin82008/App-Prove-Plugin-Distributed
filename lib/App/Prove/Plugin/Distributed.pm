@@ -5,7 +5,9 @@ use Getopt::Long;
 use Carp;
 use Test::More;
 use IO::Socket::INET;
-
+use Sys::Hostname;
+use constant LOCK_EX => 2;
+use constant LOCK_NB => 4;
 use vars qw($VERSION @ISA);
 
 my $error = '';
@@ -48,6 +50,7 @@ sub load {
             'distributed-type=s' => \$app->{distributed_type},
             'start-up=s'         => \$app->{start_up},
             'tear-down=s'        => \$app->{tear_down},
+            'error-log=s'        => \$app->{error_log},
         ) or croak('Unable to continue');
     }
     my $type = $app->{distributed_type};
@@ -67,7 +70,7 @@ sub load {
         unshift @{ $app->{argv} }, "$option_name=number_of_workers=" . $app->{jobs};
     }
 
-    for (qw(start_up tear_down)) {
+    for (qw(start_up tear_down error_log)) {
         if ( $app->{$_} ) {
             unshift @{ $app->{argv} }, "$option_name=$_=" . $app->{$_};
         }
@@ -89,7 +92,7 @@ sub load {
     }
 
     my $original_perl_5_lib = $ENV{PERL5LIB} || '';
-    my @original_include    = @INC;
+    my @original_include = @INC;
     if ( $app->{includes} ) {
         my @includes = split /:/, $original_perl_5_lib;
         unshift @includes, @original_include;
@@ -115,7 +118,10 @@ sub load {
     while (1) {
 
         #LSF: The is the server to serve the test.
-        $class->start_server( $app->{manager} );
+        $class->start_server(
+            spec => $app->{manager},
+            ( $app->{error_log} ? ( error_log => $app->{error_log} ) : () )
+        );
     }
 
     #LSF: Anything below here might not be called.
@@ -140,7 +146,8 @@ Parameter is the contoller peer address.
 
 sub start_server {
     my $class = shift;
-    my $spec  = shift;
+    my %args  = @_;
+    my ( $spec, $error_log ) = @args{ 'spec', 'error_log' };
 
     my $socket = IO::Socket::INET->new(
         PeerAddr => $spec,
@@ -166,14 +173,26 @@ sub start_server {
         $builder->output($socket);
         $builder->failure_output($socket);
         $builder->todo_output($socket);
-	*STDERR = $socket;
-	*STDOUT = $socket;
+        *STDERR = $socket;
+        *STDOUT = $socket;
         unless ( $class->_do($job_info) ) {
             print $socket "$0\n$error\n\b";
-	    use IO::File;
-	    my $fh = IO::File->new($$, 'w');
-	    print $fh "$0\n$error\n\b";
-	    close $fh;
+            if ($error_log) {
+                use IO::File;
+                my $fh = IO::File->new( "$error_log", 'a+' );
+                unless ( flock( $fh, LOCK_EX | LOCK_NB ) ) {
+                    warn "can't immediately write-lock the file ($!), blocking ...";
+                    unless ( flock( $fh, LOCK_EX ) ) {
+                        die "can't get write-lock on numfile: $!";
+                    }
+                }
+                my $server_spec
+                    = ( $socket->sockhost eq '0.0.0.0' ? hostname : $socket->sockhost ) . ':'
+                    . $socket->sockport;
+                print $fh
+                    "<< START $job_info >>\nSERVER: $server_spec\nPID: $$\nERROR: $error\n<< END $job_info >>\n\b";
+                close $fh;
+            }
         }
         exit;
     }

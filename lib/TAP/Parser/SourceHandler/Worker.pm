@@ -97,8 +97,7 @@ sub make_iterator {
     if ($worker) {
         $worker->autoflush(1);
         $worker->print( ${ $source->raw } . "\n" );
-        return TAP::Parser::Iterator::Stream::Selectable->new(
-            { handle => $worker } );
+        return TAP::Parser::Iterator::Stream::Selectable->new( { handle => $worker } );
     }
     elsif ( !$retry ) {
 
@@ -134,20 +133,20 @@ sub get_a_worker {
     $tmp =~ s/^$package//;
     my $option_name = 'Worker' . $tmp;
     $number_of_workers = $source->{config}->{$option_name}->{number_of_workers}
-      || 1;
-    my $startup  = $source->{config}->{$option_name}->{start_up};
-    my $teardown = $source->{config}->{$option_name}->{tear_down};
-    my %args     = ();
-    $args{start_up}  = $startup  if ($startup);
-    $args{tear_down} = $teardown if ($teardown);
+        || 1;
+    my $startup   = $source->{config}->{$option_name}->{start_up};
+    my $teardown  = $source->{config}->{$option_name}->{tear_down};
+    my $error_log = $source->{config}->{$option_name}->{error_log};
+    my %args      = ();
+    $args{start_up}  = $startup   if ($startup);
+    $args{tear_down} = $teardown  if ($teardown);
+    $args{error_log} = $error_log if ($error_log);
     $args{switches}  = $source->{switches};
 
     if ( @workers < $number_of_workers ) {
         my $listener = $class->listener;
-        my $spec =
-          ( $listener->sockhost eq '0.0.0.0' ? hostname : $listener->sockhost )
-          . ':'
-          . $listener->sockport;
+        my $spec = ( $listener->sockhost eq '0.0.0.0' ? hostname : $listener->sockhost ) . ':'
+            . $listener->sockport;
         my $iterator_class = $class->iterator_class;
         eval "use $iterator_class;";
         $args{spec} = $spec;

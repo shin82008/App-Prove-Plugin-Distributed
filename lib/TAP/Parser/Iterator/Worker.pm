@@ -41,6 +41,7 @@ sub _initialize {
     $self->{spec}      = $args->{spec};
     $self->{start_up}  = $args->{start_up};
     $self->{tear_down} = $args->{tear_down};
+    $self->{error_log} = $args->{error_log};
     $self->{switches}  = $args->{switches};
     return
         unless (
@@ -72,7 +73,7 @@ sub initialize_worker_command {
 
         #my $option_name = '--worker' . ( $type ? '-' . lc($type) : '' ) . '-option';
         my $option_name = '--worker-option';
-        for my $option (qw(start_up tear_down)) {
+        for my $option (qw(start_up tear_down error_log)) {
             my $name = $option;
             $name =~ s/_/-/g;
             push @args, "--$name=" . $self->{$option} if ( $self->{$option} );
