@@ -8,7 +8,9 @@ use IO::Select;
 use vars (qw($VERSION @ISA));
 
 use TAP::Parser::SourceHandler                ();
+use TAP::Parser::IteratorFactory              ();
 use TAP::Parser::Iterator::Worker             ();
+use TAP::Parser::SourceHandler::Perl          ();
 use TAP::Parser::Iterator::Stream::Selectable ();
 @ISA = 'TAP::Parser::SourceHandler';
 
@@ -55,25 +57,24 @@ my $listener;
   my $vote = $class->can_handle( $source );
 
 Casts the following votes:
-
-  0.9 if $source is an IO::Handle
-  0.8 if $source is a glob
-
+  
+  Vote the same way as the L<TAP::Parser::SourceHandler::Perl> 
+  but with 0.01 higher than perl source.
+  
 =cut
 
 sub can_handle {
     my ( $class, $src ) = @_;
-    my $meta = $src->meta;
+    my $vote = TAP::Parser::SourceHandler::Perl->can_handle($src);
+    return 0 unless ($vote);
 
-    #LSF: Do not handle the IO::Handle object.
-    return 0
-        if $meta->{is_object}
-            && UNIVERSAL::isa( $src->raw, 'IO::Handle' );
+    #LSF: If it is a subclass, we will add 0.01 for each level of subclass.
     my $package = __PACKAGE__;
     my $tmp     = $class;
     $tmp =~ s/^$package//;
     my @number = split '::', $tmp;
-    return '0.9' . scalar(@number);
+
+    return $vote + ( 1 + scalar(@number) ) * 0.01;
 }
 
 =head1 SYNOPSIS
@@ -84,7 +85,7 @@ sub can_handle {
 
   my $iterator = $class->make_iterator( $source );
 
-Returns a new L<TAP::Parser::Iterator::Worker> for the source.
+Returns a new L<TAP::Parser::Iterator::Stream::Selectable> for the source.
 
 =cut
 
@@ -131,13 +132,19 @@ sub get_a_worker {
     my $tmp     = $class;
     $tmp =~ s/^$package//;
     my $option_name = 'Worker' . $tmp;
-    $number_of_workers = $source->{config}->{$option_name}->{number_of_workers};
-    my $startup  = $source->{config}->{$option_name}->{start_up};
-    my $teardown = $source->{config}->{$option_name}->{tear_down};
-    my %args     = ();
-    $args{start_up}  = $startup  if ($startup);
-    $args{tear_down} = $teardown if ($teardown);
+    $number_of_workers = $source->{config}->{$option_name}->{number_of_workers}
+        || 1;
+    my $startup   = $source->{config}->{$option_name}->{start_up};
+    my $teardown  = $source->{config}->{$option_name}->{tear_down};
+    my $error_log = $source->{config}->{$option_name}->{error_log};
+    my $detach    = $source->{config}->{$option_name}->{detach};
+    my %args      = ();
+    $args{start_up}  = $startup             if ($startup);
+    $args{tear_down} = $teardown            if ($teardown);
+    $args{detach}    = $detach              if ($detach);
+    $args{error_log} = $error_log           if ($error_log);
     $args{switches}  = $source->{switches};
+    $args{test_args} = $source->{test_args} if ( $source->{test_args} );
 
     if ( @workers < $number_of_workers ) {
         my $listener = $class->listener;
