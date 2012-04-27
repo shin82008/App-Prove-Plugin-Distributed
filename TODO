@@ -1,4 +1,5 @@
-If a test file contain a package "main", the Distributed test will fail.
+
+1)  If a test file contain a package "main", the Distributed test will fail.
 For example, the code below in the test file.
 
 
@@ -16,5 +17,26 @@ For example, the code below in the test file.
 	Listen => 5,
 	Proto  => 'tcp'
     );
+
+    ...
+
+2)  Empty string matches problem.  Shown below is the example code that illustrate the problem.
+
+    ...
+
+    ok('good=bad' =~ m/^.*?=.*/, 'test');
+
+    ok('test' =~ m//, 'this will failed before the previous regex match with a "?=" regex match. I have no way to reset back the previous regex change the regex engine unless I put it in its scope.');
+
+    ...
+
+
+If I put it in its scope as shown below, it will not affect the next text.
+
+    ...
+    {
+       ok('good=bad' =~ m/^.*?=.*/, 'test');
+    }
+    ok('test' =~ m//, 'this will failed before the previous regex match with a "?=" regex match. I have no way to reset back the previous regex change the regex engine unless I put it in its scope.');
 
     ...
