@@ -88,7 +88,7 @@ sub load {
         return 1;
     }
 
-    my $original_perl_5_lib = $ENV{PERL5LIB};
+    my $original_perl_5_lib = $ENV{PERL5LIB} || '';
     my @original_include    = @INC;
     if ( $app->{includes} ) {
         my @includes = split /:/, $original_perl_5_lib;
@@ -166,8 +166,14 @@ sub start_server {
         $builder->output($socket);
         $builder->failure_output($socket);
         $builder->todo_output($socket);
+	*STDERR = $socket;
+	*STDOUT = $socket;
         unless ( $class->_do($job_info) ) {
             print $socket "$0\n$error\n\b";
+	    use IO::File;
+	    my $fh = IO::File->new($$, 'w');
+	    print $fh "$0\n$error\n\b";
+	    close $fh;
         }
         exit;
     }

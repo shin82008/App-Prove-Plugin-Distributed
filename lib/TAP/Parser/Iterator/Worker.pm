@@ -37,6 +37,7 @@ Make a new worker.
 
 sub _initialize {
     my ( $self, $args ) = @_;
+    return unless($args->{spec});
     $self->{spec}      = $args->{spec};
     $self->{start_up}  = $args->{start_up};
     $self->{tear_down} = $args->{tear_down};
