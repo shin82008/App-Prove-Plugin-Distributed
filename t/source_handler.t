@@ -2,8 +2,7 @@
 
 =head1 DESCRIPTION
 
-  This test is a copy of the Test-Harness source_handler.t
-  that is modified to test the L<TAP::Parser::SourceHandler::Worker>
+This test is modified of the source_handler.t of the Test-Harness distribution to test the  L<TAP::Parser::SourceHandler::Worker>.
 
 =cut
 
