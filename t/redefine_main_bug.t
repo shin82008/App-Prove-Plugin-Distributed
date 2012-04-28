@@ -26,6 +26,10 @@ For example, the code below in the test file.
 
 Thank to Anthony Brummett for fixing this bug.
 
+Git Repository URL for the bug fix from amb43790:
+
+   https://github.com/amb43790/App-Prove-Plugin-Distributed/commit/ab47d7330a8f17b3dcf718786c8cd6445fd4a033
+
 The bug fix is contributed by amb43790 (Anthony Brummett) github user.
 
 =cut

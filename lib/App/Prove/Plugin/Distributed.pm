@@ -8,6 +8,8 @@ use IO::Socket::INET;
 use Sys::Hostname;
 use constant LOCK_EX => 2;
 use constant LOCK_NB => 4;
+use File::Spec;
+
 use vars qw($VERSION @ISA);
 
 my $error = '';
@@ -40,7 +42,7 @@ sub load {
     {
         local @ARGV = @args;
 
-        push @ARGV, grep {/^--/} @{ $app->{argv} };
+        push @ARGV, grep { /^--/ } @{ $app->{argv} };
         $app->{argv} = [ grep { !/^--/ } @{ $app->{argv} } ];
         Getopt::Long::Configure(qw(no_ignore_case bundling pass_through));
 
@@ -60,7 +62,8 @@ sub load {
         && $app->{argv}->[0] =~ /$option_name=number_of_workers=(\d+)/ )
     {
         if ( $app->{jobs} ) {
-            die "-j and $option_name=number_of_workers are mutually exclusive.\n";
+            die
+              "-j and $option_name=number_of_workers are mutually exclusive.\n";
         }
         else {
             $app->{jobs} = $1;
@@ -68,7 +71,8 @@ sub load {
     }
     else {
         $app->{jobs} ||= 1;
-        unshift @{ $app->{argv} }, "$option_name=number_of_workers=" . $app->{jobs};
+        unshift @{ $app->{argv} },
+          "$option_name=number_of_workers=" . $app->{jobs};
     }
 
     for (qw(start_up tear_down error_log detach)) {
@@ -81,12 +85,13 @@ sub load {
 
         #LSF: Set the iterator.
         $app->sources(
-            [   'Worker'
-                    . (
+            [
+                'Worker'
+                  . (
                     $app->{distributed_type}
                     ? '::' . $app->{distributed_type}
                     : ''
-                    )
+                  )
             ]
         );
         return 1;
@@ -151,7 +156,8 @@ Parameter is the contoller peer address.
 sub start_server {
     my $class = shift;
     my %args  = @_;
-    my ( $app, $spec, $error_log, $detach ) = @args{ 'app', 'spec', 'error_log', 'detach' };
+    my ( $app, $spec, $error_log, $detach ) =
+      @args{ 'app', 'spec', 'error_log', 'detach' };
 
     my $socket = IO::Socket::INET->new(
         PeerAddr => $spec,
@@ -177,17 +183,19 @@ sub start_server {
         $builder->output($socket);
         $builder->failure_output($socket);
         $builder->todo_output($socket);
-        *STDERR     = $socket;
-        *STDOUT     = $socket;
+        *STDERR = $socket;
+        *STDOUT = $socket;
         if ($detach) {
             my $command = join ' ',
-                ( $job_info, ( $app->{test_args} ? @{ $app->{test_args} } : () ) );
+              ( $job_info,
+                ( $app->{test_args} ? @{ $app->{test_args} } : () ) );
             {
                 require TAP::Parser::Source;
                 require TAP::Parser::SourceHandler::Worker;
                 my $source = TAP::Parser::Source->new();
                 $source->raw( \$job_info )->assemble_meta;
-                my $vote = TAP::Parser::SourceHandler::Worker->can_handle($source);
+                my $vote =
+                  TAP::Parser::SourceHandler::Worker->can_handle($source);
                 if ( $vote >= 0.75 ) {
                     $command = $^X . ' ' . $command;
                 }
@@ -201,16 +209,20 @@ sub start_server {
                 use IO::File;
                 my $fh = IO::File->new( "$error_log", 'a+' );
                 unless ( flock( $fh, LOCK_EX | LOCK_NB ) ) {
-                    warn "can't immediately write-lock the file ($!), blocking ...";
+                    warn
+"can't immediately write-lock the file ($!), blocking ...";
                     unless ( flock( $fh, LOCK_EX ) ) {
                         die "can't get write-lock on numfile: $!";
                     }
                 }
-                my $server_spec
-                    = ( $socket->sockhost eq '0.0.0.0' ? hostname : $socket->sockhost ) . ':'
-                    . $socket->sockport;
+                my $server_spec =
+                  ( $socket->sockhost eq '0.0.0.0'
+                    ? hostname
+                    : $socket->sockhost )
+                  . ':'
+                  . $socket->sockport;
                 print $fh
-                    "<< START $job_info >>\nSERVER: $server_spec\nPID: $$\nERROR: $error\n<< END $job_info >>\n\b";
+"<< START $job_info >>\nSERVER: $server_spec\nPID: $$\nERROR: $error\n<< END $job_info >>\n\b";
                 close $fh;
             }
         }
@@ -227,21 +239,30 @@ sub _do {
     my $proto    = shift;
     my $job_info = shift;
 
+    my $cwd = File::Spec->rel2abs('.');
+
     #LSF: The code from here to exit is from  L<FCGI::Daemon> module.
     local *CORE::GLOBAL::exit = sub { die 'notr3a11yeXit' };
     local $0 = $job_info;    #fixes FindBin (in English $0 means $PROGRAM_NAME)
     no strict;               # default for Perl5
-    do $0;                   # do $0; could be enough for strict scripts
-    if ($EVAL_ERROR) {
-        $EVAL_ERROR =~ s{\n+\z}{};
-        unless ( $EVAL_ERROR =~ m{^notr3a11yeXit} ) {
-            $error = $EVAL_ERROR;
+    {
+
+        package main;
+        local @ARGV = ();
+        do $0;               # do $0; could be enough for strict scripts
+        chdir($cwd);
+
+        if ($EVAL_ERROR) {
+            $EVAL_ERROR =~ s{\n+\z}{};
+            unless ( $EVAL_ERROR =~ m{^notr3a11yeXit} ) {
+                $error = $EVAL_ERROR;
+                return;
+            }
+        }
+        elsif ($@) {
+            $error = $@;
             return;
         }
-    }
-    elsif ($@) {
-        $error = $@;
-        return;
     }
     return 1;
 }
