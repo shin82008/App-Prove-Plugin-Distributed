@@ -20,11 +20,11 @@ App::Prove::Plugin::Distributed - to distribute test job using client and server
 
 =head1 VERSION
 
-Version 0.01
+Version 0.03
 
 =cut
 
-$VERSION = '0.01';
+$VERSION = '0.03';
 
 =head3 C<load>
 
@@ -55,6 +55,25 @@ sub load {
             'error-log=s'        => \$app->{error_log},
             'detach'             => \$app->{detach},
         ) or croak('Unable to continue');
+
+#LSF: We pass the option to the source handler if the source handler want the options.
+        unless ( $app->{manager} ) {
+            my $source_handler_class =
+                'TAP::Parser::SourceHandler::' 
+              . 'Worker'
+              . (
+                $app->{distributed_type}
+                ? '::' . $app->{distributed_type}
+                : ''
+              );
+            eval "use $source_handler_class";
+            unless ($@) {
+                unless ( $source_handler_class->load_options( $app, \@ARGV ) ) {
+                    croak('Unable to continue without needed worker options.');
+                }
+            }
+        }
+
     }
     my $type = $app->{distributed_type};
     my $option_name = '--worker' . ( $type ? '-' . lc($type) : '' ) . '-option';
@@ -203,7 +222,7 @@ sub start_server {
             }
             exit;
         }
-        unless ( $class->_do($job_info) ) {
+        unless ( $class->_do( $job_info, $app->{test_args} ) ) {
             print $socket "$0\n$error\n\b";
             if ($error_log) {
                 use IO::File;
@@ -215,10 +234,11 @@ sub start_server {
                         die "can't get write-lock on numfile: $!";
                     }
                 }
-                my $server_spec =
-                  ( $socket->sockhost eq '0.0.0.0'
+                my $server_spec = (
+                    $socket->sockhost eq '0.0.0.0'
                     ? hostname
-                    : $socket->sockhost )
+                    : $socket->sockhost
+                  )
                   . ':'
                   . $socket->sockport;
                 print $fh
@@ -238,6 +258,7 @@ sub start_server {
 sub _do {
     my $proto    = shift;
     my $job_info = shift;
+    my $args     = shift;
 
     my $cwd = File::Spec->rel2abs('.');
 
@@ -248,7 +269,7 @@ sub _do {
     {
 
         package main;
-        local @ARGV = ();
+        local @ARGV = $args ? @$args : ();
         do $0;               # do $0; could be enough for strict scripts
         chdir($cwd);
 
