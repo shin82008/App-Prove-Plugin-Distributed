@@ -107,7 +107,7 @@ sub load {
         my %found;
         my @wanted;
         for my $include (@includes) {
-            unless ( $found{$include} ) {
+            unless ( $found{$include}++ ) {
                 push @wanted, $include;
             }
         }
