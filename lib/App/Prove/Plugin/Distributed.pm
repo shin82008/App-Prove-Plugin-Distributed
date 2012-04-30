@@ -250,7 +250,7 @@ sub start_server {
                 my $source = TAP::Parser::Source->new();
                 $source->raw( \$job_info )->assemble_meta;
                 my $vote = TAP::Parser::SourceHandler::Worker->can_handle($source);
-                if ( $vote >= 0.75 ) {
+                if ( $vote > 0.25 ) {
                     unshift @command, TAP::Parser::SourceHandler::Perl->get_perl();
                 }
                 open STDOUT, ">&", $socket;
