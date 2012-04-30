@@ -6,6 +6,7 @@ use Carp;
 use Test::More;
 use IO::Socket::INET;
 use File::Spec;
+use Cwd;
 
 use Sys::Hostname;
 use constant LOCK_EX => 2;
@@ -99,7 +100,7 @@ sub load {
     }
 
     my $original_perl_5_lib = $ENV{PERL5LIB} || '';
-    my @original_include = @INC;
+    my @original_include = $class->extra_used_libs();
     if ( $app->{includes} ) {
         my @includes = split /:/, $original_perl_5_lib;
         unshift @includes, @original_include;
@@ -145,6 +146,66 @@ sub load {
     @INC = @original_include;
     return 1;
 }
+
+=head3 C<extra_used_libs>
+
+Return a list of paths in @INC that are not part of the compiled-in lsit of paths
+
+=cut
+
+my @initial_compiled_inc;
+BEGIN {
+    use Config;
+
+    my @var_list = (
+        'updatesarch', 'updateslib',
+        'archlib', 'privlib',
+        'sitearch', 'sitelib', 'sitelib_stem',
+        'vendorarch', 'vendorlib', 'vendorlib_stem',
+        'extrasarch', 'extraslib',
+    );
+
+    for my $var_name (@var_list) {
+        if ($var_name =~ /_stem$/ && $Config{$var_name}) {
+            my @stem_list = (split(' ', $Config{'inc_version_list'}), '');
+            push @initial_compiled_inc, map { $Config{$var_name} . "/$_" } @stem_list
+        } else {
+            push @initial_compiled_inc, $Config{$var_name} if $Config{$var_name};
+        }
+    }
+
+    # . is part of the initial @INC unless in taint mode
+    push @initial_compiled_inc, '.' if (${^TAINT} == 0);
+
+    map { s/\/+/\//g } @initial_compiled_inc;
+    map { s/\/+$// } @initial_compiled_inc;
+}
+
+
+sub extra_used_libs {
+    my $class = shift;
+
+    my @extra;
+    my @compiled_inc = @initial_compiled_inc;
+    my @perl5lib = split(':', $ENV{PERL5LIB});
+    map { $_ =~ s/\/+$// } (@compiled_inc, @perl5lib);   # remove trailing slashes
+    map { $_ = Cwd::abs_path($_) || $_ } (@compiled_inc, @perl5lib);
+    for my $inc (@INC) {
+        $inc =~ s/\/+$//;
+        my $abs_inc = Cwd::abs_path($inc) || $inc; # should already be expanded by UR.pm
+        next if (grep { $_ =~ /^$abs_inc$/ } @compiled_inc);
+        next if (grep { $_ =~ /^$abs_inc$/ } @perl5lib);
+        push @extra, $inc;
+    }
+
+    #unshift @extra, ($ENV{PERL_USED_ABOVE} ? split(":", $ENV{PERL_USED_ABOVE}) : ());
+
+    map { $_ =~ s/\/+$// } @extra;   # remove trailing slashes again
+    #@extra = _unique_elements(@extra);
+
+    return @extra;
+}
+
 
 =head3 C<start_server>
 
