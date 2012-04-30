@@ -12,6 +12,10 @@ use constant LOCK_EX => 2;
 use constant LOCK_NB => 4;
 use vars qw($VERSION @ISA);
 
+use TAP::Parser::Source;
+use TAP::Parser::SourceHandler::Worker;
+use TAP::Parser::SourceHandler::Perl;
+
 my $error = '';
 
 =head1 NAME
@@ -179,24 +183,26 @@ sub start_server {
         $builder->output($socket);
         $builder->failure_output($socket);
         $builder->todo_output($socket);
-        *STDERR     = $socket;
-        *STDOUT     = $socket;
         if ($detach) {
-            my $command = join ' ',
-                ( $job_info, ( $app->{test_args} ? @{ $app->{test_args} } : () ) );
+            my @command = ( $job_info, ( $app->{test_args} ? @{ $app->{test_args} } : () ) );
             {
-                require TAP::Parser::Source;
-                require TAP::Parser::SourceHandler::Worker;
                 my $source = TAP::Parser::Source->new();
                 $source->raw( \$job_info )->assemble_meta;
                 my $vote = TAP::Parser::SourceHandler::Worker->can_handle($source);
                 if ( $vote >= 0.75 ) {
-                    $command = $^X . ' ' . $command;
+                    unshift @command, TAP::Parser::SourceHandler::Perl->get_perl();
                 }
-                print $socket `$command`;
+                open STDOUT, ">&", $socket;
+                open STDERR, ">&", $socket;
+                exec(@command);
+
+                # Shouldn't get here...
+                print $socket "Error running command: $!\nCommand was: ",join(' ',@command),"\n";
             }
             exit;
         }
+        *STDERR     = $socket;
+        *STDOUT     = $socket;
         unless ( $class->_do($job_info) ) {
             print $socket "$0\n$error\n\b";
             if ($error_log) {
