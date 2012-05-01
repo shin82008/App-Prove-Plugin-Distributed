@@ -113,7 +113,6 @@ sub load {
             }
         }
         $ENV{PERL5LIB} = join ':', @wanted;
-        @INC = @wanted;
     }
 
     #LSF: Start up.
