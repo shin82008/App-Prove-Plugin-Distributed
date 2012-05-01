@@ -67,6 +67,16 @@ sub can_handle {
     my ( $class, $src ) = @_;
     my $vote = TAP::Parser::SourceHandler::Perl->can_handle($src);
     return 0 unless ($vote);
+    if ( $src->{config} ) {
+        my @config_keys = keys %{ $src->{config} };
+        if ( scalar(@config_keys) == 1 ) {
+
+            #LSF: If it is detach, we just run everythings.
+            if ( $src->{config}->{ $config_keys[0] }->{detach} ) {
+                $vote = 0.90;
+            }
+        }
+    }
 
     #LSF: If it is a subclass, we will add 0.01 for each level of subclass.
     my $package = __PACKAGE__;
@@ -97,7 +107,8 @@ sub make_iterator {
     if ($worker) {
         $worker->autoflush(1);
         $worker->print( ${ $source->raw } . "\n" );
-        return TAP::Parser::Iterator::Stream::Selectable->new( { handle => $worker } );
+        return TAP::Parser::Iterator::Stream::Selectable->new(
+            { handle => $worker } );
     }
     elsif ( !$retry ) {
 
@@ -133,7 +144,7 @@ sub get_a_worker {
     $tmp =~ s/^$package//;
     my $option_name = 'Worker' . $tmp;
     $number_of_workers = $source->{config}->{$option_name}->{number_of_workers}
-        || 1;
+      || 1;
     my $startup   = $source->{config}->{$option_name}->{start_up};
     my $teardown  = $source->{config}->{$option_name}->{tear_down};
     my $error_log = $source->{config}->{$option_name}->{error_log};
@@ -148,8 +159,10 @@ sub get_a_worker {
 
     if ( @workers < $number_of_workers ) {
         my $listener = $class->listener;
-        my $spec = ( $listener->sockhost eq '0.0.0.0' ? hostname : $listener->sockhost ) . ':'
-            . $listener->sockport;
+        my $spec =
+          ( $listener->sockhost eq '0.0.0.0' ? hostname : $listener->sockhost )
+          . ':'
+          . $listener->sockport;
         my $iterator_class = $class->iterator_class;
         eval "use $iterator_class;";
         $args{spec} = $spec;
@@ -231,6 +244,41 @@ sub get_active_workers {
         push @active, $worker if ($worker);
     }
     return @active;
+}
+
+=head3 C<load_options>
+  
+Setup the worker specific options.
+
+  my @active_workers = $class->load_options($app_prove_object, \@ARGV);
+
+Returns boolean.
+
+=cut
+
+sub load_options {
+    my $class = shift;
+    my ( $app, $args ) = @_;
+    {
+        local @ARGV = @$args;
+        Getopt::Long::Configure(qw(no_ignore_case bundling pass_through));
+
+=cut
+        # Example options setup.
+        # Don't add coderefs to GetOptions
+        GetOptions(
+            'manager=s'          => \$app->{manager},
+            'distributed-type=s' => \$app->{distributed_type},
+            'start-up=s'         => \$app->{start_up},
+            'tear-down=s'        => \$app->{tear_down},
+            'error-log=s'        => \$app->{error_log},
+            'detach'             => \$app->{detach},
+        ) or croak('Unable to continue');
+
+=cut
+
+    }
+    return 1;
 }
 
 1;

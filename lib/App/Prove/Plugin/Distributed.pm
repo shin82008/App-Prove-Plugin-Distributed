@@ -11,6 +11,8 @@ use Cwd;
 use Sys::Hostname;
 use constant LOCK_EX => 2;
 use constant LOCK_NB => 4;
+use File::Spec;
+
 use vars qw($VERSION @ISA);
 
 use TAP::Parser::Source;
@@ -25,11 +27,11 @@ App::Prove::Plugin::Distributed - to distribute test job using client and server
 
 =head1 VERSION
 
-Version 0.01
+Version 0.03
 
 =cut
 
-$VERSION = '0.01';
+$VERSION = '0.03';
 
 =head3 C<load>
 
@@ -47,7 +49,7 @@ sub load {
     {
         local @ARGV = @args;
 
-        push @ARGV, grep {/^--/} @{ $app->{argv} };
+        push @ARGV, grep { /^--/ } @{ $app->{argv} };
         $app->{argv} = [ grep { !/^--/ } @{ $app->{argv} } ];
         Getopt::Long::Configure(qw(no_ignore_case bundling pass_through));
 
@@ -60,6 +62,25 @@ sub load {
             'error-log=s'        => \$app->{error_log},
             'detach'             => \$app->{detach},
         ) or croak('Unable to continue');
+
+#LSF: We pass the option to the source handler if the source handler want the options.
+        unless ( $app->{manager} ) {
+            my $source_handler_class =
+                'TAP::Parser::SourceHandler::' 
+              . 'Worker'
+              . (
+                $app->{distributed_type}
+                ? '::' . $app->{distributed_type}
+                : ''
+              );
+            eval "use $source_handler_class";
+            unless ($@) {
+                unless ( $source_handler_class->load_options( $app, \@ARGV ) ) {
+                    croak('Unable to continue without needed worker options.');
+                }
+            }
+        }
+
     }
     my $type = $app->{distributed_type};
     my $option_name = '--worker' . ( $type ? '-' . lc($type) : '' ) . '-option';
@@ -67,7 +88,8 @@ sub load {
         && $app->{argv}->[0] =~ /$option_name=number_of_workers=(\d+)/ )
     {
         if ( $app->{jobs} ) {
-            die "-j and $option_name=number_of_workers are mutually exclusive.\n";
+            die
+              "-j and $option_name=number_of_workers are mutually exclusive.\n";
         }
         else {
             $app->{jobs} = $1;
@@ -75,7 +97,8 @@ sub load {
     }
     else {
         $app->{jobs} ||= 1;
-        unshift @{ $app->{argv} }, "$option_name=number_of_workers=" . $app->{jobs};
+        unshift @{ $app->{argv} },
+          "$option_name=number_of_workers=" . $app->{jobs};
     }
 
     for (qw(start_up tear_down error_log detach)) {
@@ -88,12 +111,13 @@ sub load {
 
         #LSF: Set the iterator.
         $app->sources(
-            [   'Worker'
-                    . (
+            [
+                'Worker'
+                  . (
                     $app->{distributed_type}
                     ? '::' . $app->{distributed_type}
                     : ''
-                    )
+                  )
             ]
         );
         return 1;
@@ -217,7 +241,8 @@ Parameter is the contoller peer address.
 sub start_server {
     my $class = shift;
     my %args  = @_;
-    my ( $app, $spec, $error_log, $detach ) = @args{ 'app', 'spec', 'error_log', 'detach' };
+    my ( $app, $spec, $error_log, $detach ) =
+      @args{ 'app', 'spec', 'error_log', 'detach' };
 
     my $socket = IO::Socket::INET->new(
         PeerAddr => $spec,
@@ -248,7 +273,8 @@ sub start_server {
             {
                 my $source = TAP::Parser::Source->new();
                 $source->raw( \$job_info )->assemble_meta;
-                my $vote = TAP::Parser::SourceHandler::Worker->can_handle($source);
+                my $vote =
+                  TAP::Parser::SourceHandler::Worker->can_handle($source);
                 if ( $vote > 0.25 ) {
                     unshift @command, TAP::Parser::SourceHandler::Perl->get_perl();
                 }
@@ -263,22 +289,27 @@ sub start_server {
         }
         *STDERR     = $socket;
         *STDOUT     = $socket;
-        unless ( $class->_do($job_info) ) {
+        unless ( $class->_do( $job_info, $app->{test_args} ) ) {
             print $socket "$0\n$error\n\b";
             if ($error_log) {
                 use IO::File;
                 my $fh = IO::File->new( "$error_log", 'a+' );
                 unless ( flock( $fh, LOCK_EX | LOCK_NB ) ) {
-                    warn "can't immediately write-lock the file ($!), blocking ...";
+                    warn
+"can't immediately write-lock the file ($!), blocking ...";
                     unless ( flock( $fh, LOCK_EX ) ) {
                         die "can't get write-lock on numfile: $!";
                     }
                 }
-                my $server_spec
-                    = ( $socket->sockhost eq '0.0.0.0' ? hostname : $socket->sockhost ) . ':'
-                    . $socket->sockport;
+                my $server_spec = (
+                    $socket->sockhost eq '0.0.0.0'
+                    ? hostname
+                    : $socket->sockhost
+                  )
+                  . ':'
+                  . $socket->sockport;
                 print $fh
-                    "<< START $job_info >>\nSERVER: $server_spec\nPID: $$\nERROR: $error\n<< END $job_info >>\n\b";
+"<< START $job_info >>\nSERVER: $server_spec\nPID: $$\nERROR: $error\n<< END $job_info >>\n\b";
                 close $fh;
             }
         }
@@ -294,6 +325,9 @@ sub start_server {
 sub _do {
     my $proto    = shift;
     my $job_info = shift;
+    my $args     = shift;
+
+    my $cwd = File::Spec->rel2abs('.');
 
     my $cwd = File::Spec->rel2abs('.');
 
@@ -302,22 +336,23 @@ sub _do {
     local $0 = $job_info;    #fixes FindBin (in English $0 means $PROGRAM_NAME)
     no strict;               # default for Perl5
     {
-        package main;
-        local @ARGV = ();
-        do $0;                   # do $0; could be enough for strict scripts
-    }
-    chdir($cwd);
 
-    if ($EVAL_ERROR) {
-        $EVAL_ERROR =~ s{\n+\z}{};
-        unless ( $EVAL_ERROR =~ m{^notr3a11yeXit} ) {
-            $error = $EVAL_ERROR;
+        package main;
+        local @ARGV = $args ? @$args : ();
+        do $0;               # do $0; could be enough for strict scripts
+        chdir($cwd);
+
+        if ($EVAL_ERROR) {
+            $EVAL_ERROR =~ s{\n+\z}{};
+            unless ( $EVAL_ERROR =~ m{^notr3a11yeXit} ) {
+                $error = $EVAL_ERROR;
+                return;
+            }
+        }
+        elsif ($@) {
+            $error = $@;
             return;
         }
-    }
-    elsif ($@) {
-        $error = $@;
-        return;
     }
     return 1;
 }

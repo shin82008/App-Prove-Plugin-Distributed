@@ -1,6 +1,7 @@
 App-Prove-Plugin-Distributed-0.01.tar.gz
 Changes
 lib/App/Prove/Plugin/Distributed.pm
+lib/App/Prove/Plugin/Distributed.pm.orig
 lib/TAP/Parser/Iterator/Stream/Selectable.pm
 lib/TAP/Parser/Iterator/Worker.pm
 lib/TAP/Parser/Iterator/Worker/LSF.pm
@@ -12,12 +13,14 @@ README
 README.txt
 t/App-Prove-Plugin-Distributed.t
 t/iterator_worker.t
+t/redefine_main_bug.t
 t/sample-tests/00.t
 t/sample-tests/01.t
 t/sample-tests/02.t
 t/sample-tests/03.t
 t/sample-tests/04.t
 t/sample-tests/05.t
+t/sample-tests/empty_string_problem
 t/sample-tests/out_err_mix
 t/source_handler.t
 t/source_tests/source
