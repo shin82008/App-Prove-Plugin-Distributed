@@ -279,10 +279,8 @@ sub start_server {
                 }
                 open STDOUT, ">&", $socket;
                 open STDERR, ">&", $socket;
-                exec(@command);
-
-                # Shouldn't get here...
-                print $socket "Error running command: $!\nCommand was: ",join(' ',@command),"\n";
+                exec(@command)
+                    or print $socket "Error running command: $!\nCommand was: ",join(' ',@command),"\n";
             }
             exit;
         }
@@ -325,8 +323,6 @@ sub _do {
     my $proto    = shift;
     my $job_info = shift;
     my $args     = shift;
-
-    my $cwd = File::Spec->rel2abs('.');
 
     my $cwd = File::Spec->rel2abs('.');
 
