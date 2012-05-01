@@ -12,11 +12,7 @@ use constant LOCK_EX => 2;
 use constant LOCK_NB => 4;
 use File::Spec;
 
-use vars qw($VERSION @ISA);
-
-use TAP::Parser::Source;
-use TAP::Parser::SourceHandler::Worker;
-use TAP::Parser::SourceHandler::Perl;
+use vars (qw($VERSION @ISA));
 
 my $error = '';
 
@@ -270,6 +266,9 @@ sub start_server {
         if ($detach) {
             my @command = ( $job_info, ( $app->{test_args} ? @{ $app->{test_args} } : () ) );
             {
+                require TAP::Parser::Source;
+                require TAP::Parser::SourceHandler::Worker;
+                require TAP::Parser::SourceHandler::Perl;
                 my $source = TAP::Parser::Source->new();
                 $source->raw( \$job_info )->assemble_meta;
                 my $vote =
