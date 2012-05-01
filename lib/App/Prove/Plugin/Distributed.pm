@@ -22,11 +22,11 @@ App::Prove::Plugin::Distributed - to distribute test job using client and server
 
 =head1 VERSION
 
-Version 0.03
+Version 0.04
 
 =cut
 
-$VERSION = '0.03';
+$VERSION = '0.04';
 
 =head3 C<load>
 
