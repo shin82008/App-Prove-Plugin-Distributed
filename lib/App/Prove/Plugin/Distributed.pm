@@ -5,7 +5,6 @@ use Getopt::Long;
 use Carp;
 use Test::More;
 use IO::Socket::INET;
-use File::Spec;
 use Cwd;
 
 use Sys::Hostname;
