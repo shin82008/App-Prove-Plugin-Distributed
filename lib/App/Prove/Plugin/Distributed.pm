@@ -18,15 +18,50 @@ my $error = '';
 
 =head1 NAME
 
-App::Prove::Plugin::Distributed - to distribute test job using client and server model.
+App::Prove::Plugin::Distributed - an L<App::Prove> plugin to distribute test jobs using client and server model.
 
 =head1 VERSION
 
-Version 0.04
+Version 0.05
 
 =cut
 
-$VERSION = '0.04';
+$VERSION = '0.05';
+
+=head1 SYNOPSIS
+
+  # Default workers with L<IPC::Open3> as worker processes.
+  prove -PDistributed -j2 t/
+
+  # Distributed jobs with LSF workers.
+  prove -PDistributed --distributed-type=LSF -j2 t/
+
+  # Distributed jobs with SSH workers.
+  prove -PDistributed --distributed-type=SSH -j2 t/
+  
+  # Distributed jobs with PBS workers using L<PBS::Client>. Note: This is not tested yet.
+  prove -PDistributed --distributed-type=PBS -j2 t/
+
+=head1 DESCRIPTION
+
+A plugin for App::Prove to distribute job.  The core implementation of the plugin is to
+provide a easy interface and functionality to extend the use of any distribution method.
+
+The initiate release of this module was using the idea from L<FCGI::Daemon> that load perl
+code file using "do" perl function to the worker perl process to execute tests.
+
+Currently, the distribution comes with a few implementation of distribution methods to
+initiate external "worker" processes.
+Shown below is the list.
+   
+   L<IPC::Open3>
+   LSF 
+   SSH
+   L<PBS::Client>  * Note: PBS implemetation is not tested yet.
+
+=head1 FUNCTIONS
+
+Basic functions.
 
 =head3 C<load>
 
@@ -356,3 +391,60 @@ sub _do {
 __END__
 
 ##############################################################################
+=head3 Plugin Command Line Options
+
+=head4 manager
+
+Option only for the worker process to indicate the control process that started 
+the worder.  The format is C<hostname>:C<port>
+
+Example, --manager=myhostname:1234
+
+=head4 distributed-type
+
+Specify the distribution method.  Currently, the valid values are shown below.
+
+   LSF
+   PBS
+   SSH
+
+=head4 start-up
+
+Start up script to load to the worker process before running test.
+It is only without the --detach option.
+
+Example,
+
+    --start-up=/dir/path/setup_my_enviroment_variable.pl
+
+=head4 tear-down
+
+Currently, the tear-down option will not be run.
+
+=head4 error-log
+
+Capture any error from the worker.  The input is the file path that the
+worker can write to.
+
+=head4 detach
+
+Detach the executing of test from the worker process. Currently, the test
+job will be executed with C<exec> perl function.
+
+=head3 Worker Specific Options
+
+Each worker can have its specific options.  Please refer to the particular
+source handler worker module for detail.
+
+=head1 AUTHORS
+
+Shin Leong  C<< <lsf@cpan.org> >>
+
+=head1 LICENCE AND COPYRIGHT
+
+Copyright (c) 2012 Shin Leong C<< <lsf@cpan.org> >>. All rights reserved.
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself, either Perl version 5.12.4 or,
+at your option, any later version of Perl 5 you may have available.
+See L<perlartistic>.
