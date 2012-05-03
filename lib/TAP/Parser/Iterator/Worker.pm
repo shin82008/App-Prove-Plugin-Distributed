@@ -102,7 +102,7 @@ sub initialize_worker_command {
         }
         my $abs_path = Cwd::abs_path($path);
         $self->{initialize_worker_command} = [
-                "perl -I $abs_path -S prove $switches -PDistributed='"
+                "perl -d:ptkdb  -I $abs_path -S prove $switches -PDistributed='"
               . ( join ',', @args ) . "'"
               . (
                 $self->{test_args} && @{ $self->{test_args} }

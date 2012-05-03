@@ -3,9 +3,11 @@ lib/App/Prove/Plugin/Distributed.pm
 lib/TAP/Parser/Iterator/Stream/Selectable.pm
 lib/TAP/Parser/Iterator/Worker.pm
 lib/TAP/Parser/Iterator/Worker/LSF.pm
+lib/TAP/Parser/Iterator/Worker/PBS.pm
 lib/TAP/Parser/Iterator/Worker/SSH.pm
 lib/TAP/Parser/SourceHandler/Worker.pm
 lib/TAP/Parser/SourceHandler/Worker/LSF.pm
+lib/TAP/Parser/SourceHandler/Worker/PBS.pm
 lib/TAP/Parser/SourceHandler/Worker/SSH.pm
 Makefile.PL
 MANIFEST			This list of files
