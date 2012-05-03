@@ -167,6 +167,7 @@ sub load {
             }
         }
         $ENV{PERL5LIB} = join ':', @wanted;
+        @INC = @wanted;
     }
 
     #LSF: Start up.
@@ -327,32 +328,47 @@ sub start_server {
         *STDERR = $socket;
         *STDOUT = $socket;
         unless ( $class->_do( $job_info, $app->{test_args} ) ) {
-            print $socket "$0\n$error\n\b";
+            my $server_spec = (
+                $socket->sockhost eq '0.0.0.0'
+                ? hostname
+                : $socket->sockhost
+              )
+              . ':'
+              . $socket->sockport;
+            print $socket (
+                '# ',
+                ( join "\n# ", ( "Worker: <$spec>", ( split /\n/, $error ) ) ),
+                "\n"
+            );
             if ($error_log) {
                 use IO::File;
                 my $fh = IO::File->new( "$error_log", 'a+' );
                 unless ( flock( $fh, LOCK_EX | LOCK_NB ) ) {
-                    warn
-"can't immediately write-lock the file ($!), blocking ...";
+                    warn "can't immediately write-lock ",
+                      "the file ($!), blocking ...";
                     unless ( flock( $fh, LOCK_EX ) ) {
                         die "can't get write-lock on numfile: $!";
                     }
                 }
-                my $server_spec = (
-                    $socket->sockhost eq '0.0.0.0'
-                    ? hostname
-                    : $socket->sockhost
-                  )
-                  . ':'
-                  . $socket->sockport;
-                print $fh
-"<< START $job_info >>\nSERVER: $server_spec\nPID: $$\nERROR: $error\n<< END $job_info >>\n\b";
+                print $fh (
+                    join "\n",
+                    (
+                        "<< START $job_info >>",
+                        "SERVER: $server_spec",
+                        "PID: $$",
+                        "ERROR: $error",
+                        "<< END $job_info >>"
+                    )
+                );
                 close $fh;
             }
         }
 
         #LSF: How to exit with END block trigger.
         &trigger_end_blocks_before_child_process_exit();
+
+        #LSF: Might not need this.
+        $socket->flush;
         exit(0);
     }
     else {
@@ -402,7 +418,7 @@ change to finish up.
 
 =cut
 
-sub trigger_end_blocks_before_child_process_exit {$DB::single = 1;
+sub trigger_end_blocks_before_child_process_exit {
     my $original_pid;
     if ( $Test::Builder::Test && $Test::Builder::Test->{Original_Pid} != $$ ) {
         $original_pid = $Test::Builder::Test->{Original_Pid};
