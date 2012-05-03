@@ -167,7 +167,12 @@ sub load {
             }
         }
         $ENV{PERL5LIB} = join ':', @wanted;
-        @INC = @wanted;
+
+        #LSF:  Put the extra libraries to @INC.
+        %found = map { $_ => 1 } @INC;
+        for (@wanted) {
+            unshift @INC, $_ unless ( $found{$_} );
+        }
     }
 
     #LSF: Start up.
