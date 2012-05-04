@@ -37,7 +37,7 @@ $VERSION = '0.06';
   prove -PDistributed --distributed-type=LSF -j2 t/
 
   # Distributed jobs with SSH workers.
-  prove -PDistributed --distributed-type=SSH -j2 t/
+  prove -PDistributed --distributed-type=SSH -j2 --host=host1,host2 t/
   
   # Distributed jobs with PBS workers using L<PBS::Client>. Note: This is not tested yet.
   prove -PDistributed --distributed-type=PBS -j2 t/
@@ -488,6 +488,17 @@ job will be executed with C<exec> perl function.
 
 Each worker can have its specific options.  Please refer to the particular
 source handler worker module for detail.
+
+=head1 BUGS
+
+Currently, the only known bug is when running in the worker perl process 
+without using C<detach> option with the empty string regular expression match.
+Shown below is the example code that will generate the bug.  For more
+information please check out the test F<t/sample-tests/empty_string_problem>.
+
+    ok('good=bad' =~ m/^.*?=.*/, 'test');
+
+    ok('test' =~ m//, 'this will failed before the previous regex match with a "?=" regex match. I have no way to reset back the previous regex change the regex engine unless I put it in its scope.');
 
 =head1 AUTHORS
 
