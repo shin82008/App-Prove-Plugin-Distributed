@@ -1,6 +1,7 @@
 package TAP::Parser::SourceHandler::Worker;
 
 use strict;
+use Getopt::Long;
 use Sys::Hostname;
 use IO::Socket::INET;
 use IO::Select;
@@ -51,6 +52,26 @@ Class static variable to store the worker listener.
 =cut 
 
 my $listener;
+
+=head3 C<$use_local_public_ip>
+
+Class static variable to flag the local public ip is needed.
+Some of the home network might not have name server setup.  Therefore,
+the public local ip is needed. 
+
+=cut 
+
+my $use_local_public_ip;
+
+=head3 C<$local_public_ip>
+
+Class static variable to store the local public ip is needed.
+Some of the home network might not have name server setup.  Therefore,
+the public local ip is needed. 
+
+=cut 
+
+my $local_public_ip;
 
 =head3 C<can_handle>
 
@@ -159,8 +180,17 @@ sub get_a_worker {
 
     if ( @workers < $number_of_workers ) {
         my $listener = $class->listener;
-        my $spec =
-          ( $listener->sockhost eq '0.0.0.0' ? hostname : $listener->sockhost )
+        if ( $use_local_public_ip && !$local_public_ip ) {
+            require Net::Address::IP::Local;
+            $local_public_ip = Net::Address::IP::Local->public;
+        }
+
+        my $spec = (
+            $local_public_ip
+              || ( $listener->sockhost eq '0.0.0.0'
+                ? hostname
+                : $listener->sockhost )
+          )
           . ':'
           . $listener->sockport;
         my $iterator_class = $class->iterator_class;
@@ -262,6 +292,10 @@ sub load_options {
     {
         local @ARGV = @$args;
         Getopt::Long::Configure(qw(no_ignore_case bundling pass_through));
+
+        # Don't add coderefs to GetOptions
+        GetOptions( 'use-local-public-ip' => \$use_local_public_ip, )
+          or croak('Unable to continue');
 
 =cut
         # Example options setup.

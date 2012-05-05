@@ -74,6 +74,7 @@ Returns boolean.
 sub load_options {
     my $class = shift;
     my ( $app, $args ) = @_;
+    croak 'parent failed to load options.' unless($class->SUPER::load_options(@_));
     {
         local @ARGV = @$args;
         Getopt::Long::Configure(qw(no_ignore_case bundling pass_through));

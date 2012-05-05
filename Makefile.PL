@@ -5,6 +5,13 @@ use ExtUtils::MakeMaker;
 WriteMakefile(
     NAME              => 'App::Prove::Plugin::Distributed',
     VERSION_FROM      => 'lib/App/Prove/Plugin/Distributed.pm', # finds $VERSION
+    META_MERGE => {
+	recommends => {
+	    'Net::Address::IP::Local' => 0,
+	    'PBS::Client' => 0,
+	    'Net::Ping' => 0,
+	},
+    },
     PREREQ_PM         => {
 			    'App::Prove' => 3.23,
 			    'Carp' => 0,
@@ -14,6 +21,7 @@ WriteMakefile(
 			    'IO::Socket::INET' => 0,
 			    'Sys::Hostname' => 0,
 			    'Test::More' => 0,
+			     
                          }, # e.g., Module::Name => 1.1
     ($] >= 5.005 ?     ## Add these new keywords supported since 5.005
       (ABSTRACT_FROM  => 'lib/App/Prove/Plugin/Distributed.pm', # retrieve abstract from module

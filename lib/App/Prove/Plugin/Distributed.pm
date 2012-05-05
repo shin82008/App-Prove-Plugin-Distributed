@@ -579,6 +579,12 @@ for more information on this.
 
 Shin Leong  C<< <lsf@cpan.org> >>
 
+=head1 CREDITS
+
+Many thanks to Anthony Brummett who has contributed ideas, code,
+and helped out on the module since it's initial release.
+See the github C<<https://github.com/shin82008/App-Prove-Plugin-Distributed>> for details.
+
 =head1 LICENCE AND COPYRIGHT
 
 Copyright (c) 2012 Shin Leong C<< <lsf@cpan.org> >>. All rights reserved.

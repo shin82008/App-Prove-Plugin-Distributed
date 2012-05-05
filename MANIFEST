@@ -15,6 +15,7 @@ README
 README.txt
 t/App-Prove-Plugin-Distributed.t
 t/iterator_worker.t
+t/no_tap_error.t
 t/redefine_main_bug.t
 t/sample-tests/00.t
 t/sample-tests/01.t
@@ -26,4 +27,5 @@ t/sample-tests/empty_string_problem
 t/sample-tests/out_err_mix
 t/source_handler.t
 t/source_tests/source
+t/use_require_no_tap_error.t
 TODO
