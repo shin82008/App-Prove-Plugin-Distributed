@@ -22,11 +22,11 @@ App::Prove::Plugin::Distributed - an L<App::Prove> plugin to distribute test job
 
 =head1 VERSION
 
-Version 0.06
+Version 0.07
 
 =cut
 
-$VERSION = '0.06';
+$VERSION = '0.07';
 
 =head1 SYNOPSIS
 
@@ -499,6 +499,81 @@ information please check out the test F<t/sample-tests/empty_string_problem>.
     ok('good=bad' =~ m/^.*?=.*/, 'test');
 
     ok('test' =~ m//, 'this will failed before the previous regex match with a "?=" regex match. I have no way to reset back the previous regex change the regex engine unless I put it in its scope.');
+
+=head1 CAVEAT
+
+If the plugin is used with a shared L<DBI> handle and without the C<detach> option,
+the database handle will be closed by the child process when the child process exits.
+
+Shown below is an example,
+
+   prove -PDistributed -j2 --start-up=InitShareDBI.pm t/
+   
+Shown below is the F<InitShareDBI.pm> codes.
+  
+   package InitShareDBI;
+
+   use strict;
+   use warnings;
+   use DBI;
+   
+   unless($InitShareDBI::dbh) {
+       $InitShareDBI::dbh = DBI->connect('dbi:mysql:test;mysql_socket=/tmp/mysql.sock', 'user', 'password', {PrintError => 1});
+   }
+   
+   sub dbh {
+       return $InitShareDBI::dbh;
+   }
+   
+   1;
+
+To get around the problem of database handle close.  Shown below is one of the solution.
+
+    $InitShareDBI::dbh->{InactiveDestroy} = 1;
+
+or,
+
+    {
+	no warnings 'redefine';
+	*DBI::db::DESTROY = sub {
+
+            # NO OP.
+	};
+    }
+
+The complete codes for the F<InitShareDBI.pm> file below.
+
+    package InitShareDBI;
+
+    use strict;
+    use warnings;
+    use DBI;
+
+    #LSF: This has to be loaded when loading this module.
+    unless ($InitShareDBI::dbh) {
+	$InitShareDBI::dbh =
+	  DBI->connect( 'dbi:mysql:database=test;host=127.0.0.1;port=3306',
+            'test', 'test', { PrintError => 1 } );
+	#LSF: This will prevent it to be destroy.
+	#$InitShareDBI::dbh->{InactiveDestroy} = 1;
+    }
+
+    {
+	no warnings 'redefine';
+	*DBI::db::DESTROY = sub {
+
+            # NO OP.
+	};
+    }
+
+    sub dbh {
+	return $InitShareDBI::dbh;
+    }
+
+    1;
+
+Please refer to "DBI, fork, and clone"  C<<http://www.perlmonks.org/?node_id=594175>>
+for more information on this.
 
 =head1 AUTHORS
 
