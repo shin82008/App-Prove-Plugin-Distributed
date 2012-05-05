@@ -30,6 +30,10 @@ $VERSION = '0.07';
 
 =head1 SYNOPSIS
 
+  # All of the examples below is loading tests into the worker perl processes
+  # If you want to run the tests in a separate perl process, you can specify
+  # the '--detach' option to accomplish that.
+  
   # Default workers with L<IPC::Open3> as worker processes.
   prove -PDistributed -j2 t/
 
