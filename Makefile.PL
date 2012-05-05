@@ -13,7 +13,7 @@ WriteMakefile(
 	},
     },
     PREREQ_PM         => {
-			    'App::Prove' => 3.23,
+			    'App::Prove' => 3.22,
 			    'Carp' => 0,
 			    'Cwd' => 0,
 			    'Getopt::Long' => 0,
