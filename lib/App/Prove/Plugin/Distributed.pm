@@ -37,10 +37,18 @@ $VERSION = '0.07';
   prove -PDistributed --distributed-type=LSF -j2 t/
 
   # Distributed jobs with SSH workers.
-  prove -PDistributed --distributed-type=SSH -j2 --host=host1,host2 t/
+  prove -PDistributed --distributed-type=SSH -j2 --hosts=host1,host2 t/
+
+  # If you are using home network that does not have name server setup,
+  # you can specify the option --use-local-public-ip
+  prove -PDistributed --distributed-type=SSH --use-local-public-ip -j2 --hosts=host1,host2 t/
   
   # Distributed jobs with PBS workers using L<PBS::Client>. Note: This is not tested yet.
   prove -PDistributed --distributed-type=PBS -j2 t/
+
+  # Distributed jobs with PBS workers using L<PBS::Client>. Note: This is not tested yet.
+  # With PBS option
+  prove -PDistributed --distributed-type=PBS --mem=200 -j2 t/
 
 =head1 DESCRIPTION
 
