@@ -108,7 +108,7 @@ sub initialize_worker_command {
         if ( $INC{$package} ) {
             $path = $INC{$package};
             $path =~ s/$package//;
-        }
+        }$DB::single = 1;
         my $switches = '';
         if ( $self->{switches} ) {
             $switches = join ' ', @{ $self->{switches} };

@@ -87,7 +87,6 @@ sub load {
     my ( $class, $p ) = @_;
     my @args = @{ $p->{args} };
     my $app  = $p->{app_prove};
-
     {
         local @ARGV = @args;
 
@@ -153,6 +152,32 @@ sub load {
         if ( $app->{$_} ) {
             unshift @{ $app->{argv} }, "$option_name=$_=" . $app->{$_};
         }
+    }
+
+    if ( $app->{sync_type} ) {
+
+        no warnings 'redefine';
+        #LSF: If we do rsync, that means we want to keep the switches unmodified.
+        *App::Prove::_get_lib = sub {
+            my $self = shift;
+            my @libs;
+            if ( $self->lib ) {
+                push @libs, 'lib';
+            }
+            if ( $self->blib ) {
+                push @libs, 'blib/lib', 'blib/arch';
+            }
+            if ( @{ $self->includes } ) {
+                push @libs, @{ $self->includes };
+            }
+
+            #LSF: Override the original not to do the abs path.
+            #@libs = map { File::Spec->rel2abs($_) } @libs;
+
+            # Huh?
+            return @libs ? \@libs : ();
+
+        };
     }
 
     unless ( $app->{manager} ) {
@@ -501,14 +526,14 @@ sub rsync_test_env {
     my $rsync = File::Rsync->new( { archive => 1, compress => 1 } );
     $rsync->exec(
         {
-            src  => ($user ? "$user\@" : '') . "$host:$source",
+            src => ( $user ? "$user\@" : '' ) . "$host:$source",
             dest => "$dest",
         }
     ) or do { $error = "rsync failed\n$!"; return; };
-    
+
     #LSF: Let change directory to destination.
     chdir "$dest";
-    
+
     return 1;
 }
 
