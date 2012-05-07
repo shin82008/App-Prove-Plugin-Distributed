@@ -73,15 +73,36 @@ the public local ip is needed.
 
 my $local_public_ip;
 
+=head3 C<$sync_type>
+
+Syncronize the source directory that will be used for testing to the remote
+host with the directory specified on the variable C<$destination_dir>.
+
+Currently it only support syncronize type of C<rsync>.
+
+=cut 
+
+my $sync_type;
+
+=head3 C<$destination_dir>
+
+Syncronize the source to destination directory.
+
+If it is not specified, it will be created with L<File::Temp::tempdir>.
+
+=cut 
+
+my $destination_dir;
+
 =head3 C<can_handle>
 
   my $vote = $class->can_handle( $source );
 
 Casts the following votes:
-  
+
   Vote the same way as the L<TAP::Parser::SourceHandler::Perl> 
   but with 0.01 higher than perl source.
-  
+
 =cut
 
 sub can_handle {
@@ -166,17 +187,23 @@ sub get_a_worker {
     my $option_name = 'Worker' . $tmp;
     $number_of_workers = $source->{config}->{$option_name}->{number_of_workers}
       || 1;
-    my $startup   = $source->{config}->{$option_name}->{start_up};
-    my $teardown  = $source->{config}->{$option_name}->{tear_down};
-    my $error_log = $source->{config}->{$option_name}->{error_log};
-    my $detach    = $source->{config}->{$option_name}->{detach};
-    my %args      = ();
-    $args{start_up}  = $startup             if ($startup);
-    $args{tear_down} = $teardown            if ($teardown);
-    $args{detach}    = $detach              if ($detach);
-    $args{error_log} = $error_log           if ($error_log);
-    $args{switches}  = $source->{switches};
-    $args{test_args} = $source->{test_args} if ( $source->{test_args} );
+    my $startup         = $source->{config}->{$option_name}->{start_up};
+    my $teardown        = $source->{config}->{$option_name}->{tear_down};
+    my $error_log       = $source->{config}->{$option_name}->{error_log};
+    my $detach          = $source->{config}->{$option_name}->{detach};
+    my $sync_type       = $source->{config}->{$option_name}->{sync_type};
+    my $source_dir      = $source->{config}->{$option_name}->{source_dir};
+    my $destination_dir = $source->{config}->{$option_name}->{destination_dir};
+    my %args            = ();
+    $args{start_up}        = $startup             if ($startup);
+    $args{tear_down}       = $teardown            if ($teardown);
+    $args{detach}          = $detach              if ($detach);
+    $args{sync_type}       = $sync_type           if ($sync_type);
+    $args{source_dir}      = $source_dir          if ($source_dir);
+    $args{destination_dir} = $destination_dir     if ($destination_dir);
+    $args{error_log}       = $error_log           if ($error_log);
+    $args{switches}        = $source->{switches};
+    $args{test_args}       = $source->{test_args} if ( $source->{test_args} );
 
     if ( @workers < $number_of_workers ) {
         my $listener = $class->listener;
@@ -187,9 +214,11 @@ sub get_a_worker {
 
         my $spec = (
             $local_public_ip
-              || ( $listener->sockhost eq '0.0.0.0'
+              || (
+                $listener->sockhost eq '0.0.0.0'
                 ? hostname
-                : $listener->sockhost )
+                : $listener->sockhost
+              )
           )
           . ':'
           . $listener->sockport;
@@ -294,23 +323,30 @@ sub load_options {
         Getopt::Long::Configure(qw(no_ignore_case bundling pass_through));
 
         # Don't add coderefs to GetOptions
-        GetOptions( 'use-local-public-ip' => \$use_local_public_ip, )
-          or croak('Unable to continue');
-
-=cut
-        # Example options setup.
-        # Don't add coderefs to GetOptions
         GetOptions(
-            'manager=s'          => \$app->{manager},
-            'distributed-type=s' => \$app->{distributed_type},
-            'start-up=s'         => \$app->{start_up},
-            'tear-down=s'        => \$app->{tear_down},
-            'error-log=s'        => \$app->{error_log},
-            'detach'             => \$app->{detach},
+            'use-local-public-ip' => \$use_local_public_ip,
+            'sync-test-env=s'     => \$sync_type,
+            'destination-dir=s'   => \$destination_dir
         ) or croak('Unable to continue');
+        if ($sync_type) {
+            if ( $sync_type eq 'rsync' ) {
+                require File::Rsync;
+                unless ($destination_dir) {
+                    require File::Temp;
+                    $destination_dir = File::Temp::tempdir( CLEANUP => 1 );
+                }
 
-=cut
-
+                #LSF: This might not support with different directory separator.
+                unless ( $destination_dir =~ /\/$/ ) {
+                    $destination_dir .= '/';
+                }
+            }
+            else {
+                die "not able to sync on the remote with type "
+                  . $sync_type
+                  . ".\nCurrently, only the rsync type is supported.\n";
+            }
+        }
     }
     return 1;
 }

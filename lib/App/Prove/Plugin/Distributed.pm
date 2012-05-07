@@ -103,6 +103,9 @@ sub load {
             'tear-down=s'        => \$app->{tear_down},
             'error-log=s'        => \$app->{error_log},
             'detach'             => \$app->{detach},
+            'sync-type=s'        => \$app->{sync_type},
+            'source-dir=s'       => \$app->{source_dir},
+            'destination-dir=s'  => \$app->{destination_dir},
         ) or croak('Unable to continue');
 
 #LSF: We pass the option to the source handler if the source handler want the options.
@@ -143,7 +146,7 @@ sub load {
           "$option_name=number_of_workers=" . $app->{jobs};
     }
 
-    for (qw(start_up tear_down error_log detach)) {
+    for (qw(start_up tear_down error_log detach sync_type source_dir destination_dir)) {
         if ( $app->{$_} ) {
             unshift @{ $app->{argv} }, "$option_name=$_=" . $app->{$_};
         }
@@ -184,6 +187,20 @@ sub load {
         %found = map { $_ => 1 } @INC;
         for (@wanted) {
             unshift @INC, $_ unless ( $found{$_} );
+        }
+    }
+
+    #LSF: Sync test environment here.
+    if ( $app->{sync_type} ) {
+        my $method = $app->{sync_type} . '_test_env';
+        unless ( $class->can($method) ) {
+            die "not able to sync on the remote with type "
+              . $app->{sync_type}
+              . ".\nCurrently, only the rsync type is supported.\n";
+        }
+
+        unless ( $class->$method($app) ) {
+            die $error;
         }
     }
 
@@ -449,6 +466,34 @@ sub trigger_end_blocks_before_child_process_exit {
     if ( $Test::Builder::Test && $original_pid ) {
         $Test::Builder::Test->{Original_Pid} = $original_pid;
     }
+}
+
+=head3 C<rsync_test_env>
+
+Rsync test enviroment to the worker host.
+
+Parameters $app object
+Returns boolean
+
+=cut
+
+sub rsync_test_env {
+    my $proto   = shift;
+    my $app     = shift;
+    my $manager = $app->{manager};
+
+    my ( $host, $port ) = split /:/, $manager, 2;
+    my $dest   = $app->{destination_dir};
+    my $source = $app->{source_dir};
+    require File::Rsync;
+    my $rsync = File::Rsync->new( { archive => 1, compress => 1 } );
+    $rsync->exec(
+        {
+            src  => "$host:$source",
+            dest => "$dest",
+        }
+    ) or do { $error = "rsync failed\n$!"; return; };
+    return 1;
 }
 
 1;
