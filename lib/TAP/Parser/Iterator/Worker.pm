@@ -78,10 +78,20 @@ sub initialize_worker_command {
         my $package = __PACKAGE__;
         $type =~ s/^$package//;
         $type =~ s/::/-/g;
+        if ( $self->{snyc_type} && !$self->{source_dir} ) {
+            my $cwd = File::Spec->rel2abs('.');
+
+            #LSF: The trailing '/' must be there for source to prevent
+            #     creating the source directory at destination directory
+            $self->{source_dir} = $cwd . '/';
+        }
 
    #my $option_name = '--worker' . ( $type ? '-' . lc($type) : '' ) . '-option';
         my $option_name = '--worker-option';
-        for my $option (qw(start_up tear_down error_log detach sync_type source_dir destination_dir)) {
+        for my $option (
+            qw(start_up tear_down error_log detach sync_type source_dir destination_dir)
+          )
+        {
             my $name = $option;
             $name =~ s/_/-/g;
             if ( $option eq 'detach' && $self->{$option} ) {

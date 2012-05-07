@@ -146,7 +146,10 @@ sub load {
           "$option_name=number_of_workers=" . $app->{jobs};
     }
 
-    for (qw(start_up tear_down error_log detach sync_type source_dir destination_dir)) {
+    for (
+        qw(start_up tear_down error_log detach sync_type source_dir destination_dir)
+      )
+    {
         if ( $app->{$_} ) {
             unshift @{ $app->{argv} }, "$option_name=$_=" . $app->{$_};
         }
@@ -483,7 +486,12 @@ sub rsync_test_env {
     my $manager = $app->{manager};
 
     my ( $host, $port ) = split /:/, $manager, 2;
-    my $dest   = $app->{destination_dir};
+    my $dest = $app->{destination_dir};
+    unless ($dest) {
+        require File::Temp;
+        $dest = File::Temp::tempdir();
+    }
+
     my $source = $app->{source_dir};
     require File::Rsync;
     my $rsync = File::Rsync->new( { archive => 1, compress => 1 } );
