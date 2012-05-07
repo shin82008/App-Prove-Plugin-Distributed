@@ -78,7 +78,7 @@ sub initialize_worker_command {
         my $package = __PACKAGE__;
         $type =~ s/^$package//;
         $type =~ s/::/-/g;
-        if ( $self->{snyc_type} && !$self->{source_dir} ) {
+        if ( $self->{sync_type} && !$self->{source_dir} ) {
             my $cwd = File::Spec->rel2abs('.');
 
             #LSF: The trailing '/' must be there for source to prevent

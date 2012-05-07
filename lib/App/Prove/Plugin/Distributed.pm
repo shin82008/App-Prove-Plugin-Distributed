@@ -492,15 +492,23 @@ sub rsync_test_env {
         $dest = File::Temp::tempdir();
     }
 
+    #LSF: Some system the rsync will not automatically using the current user.
+    #     Let get the user for rsync.
+    my $user = $ENV{USER};
+
     my $source = $app->{source_dir};
     require File::Rsync;
     my $rsync = File::Rsync->new( { archive => 1, compress => 1 } );
     $rsync->exec(
         {
-            src  => "$host:$source",
+            src  => ($user ? "$user\@" : '') . "$host:$source",
             dest => "$dest",
         }
     ) or do { $error = "rsync failed\n$!"; return; };
+    
+    #LSF: Let change directory to destination.
+    chdir "$dest";
+    
     return 1;
 }
 
