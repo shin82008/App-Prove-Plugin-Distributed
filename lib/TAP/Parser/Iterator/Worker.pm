@@ -17,11 +17,11 @@ TAP::Parser::Iterator::Worker - Iterator for worker TAP sources
 
 =head1 VERSION
 
-Version 0.01
+Version 0.08
 
 =cut
 
-$VERSION = '0.01';
+$VERSION = '0.08';
 
 =head1 SYNOPSIS
 
@@ -108,7 +108,7 @@ sub initialize_worker_command {
         if ( $INC{$package} ) {
             $path = $INC{$package};
             $path =~ s/$package//;
-        }$DB::single = 1;
+        }
         my $switches = '';
         if ( $self->{switches} ) {
             $switches = join ' ', @{ $self->{switches} };

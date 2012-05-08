@@ -22,11 +22,11 @@ App::Prove::Plugin::Distributed - an L<App::Prove> plugin to distribute test job
 
 =head1 VERSION
 
-Version 0.07
+Version 0.08
 
 =cut
 
-$VERSION = '0.07';
+$VERSION = '0.08';
 
 =head1 SYNOPSIS
 
@@ -574,13 +574,51 @@ Currently, the tear-down option will not be run.
 
 =head4 error-log
 
-Capture any error from the worker.  The input is the file path that the
-worker can write to.
+Capture any error from the worker.  The error log file is the file path 
+that the worker can write to.
 
 =head4 detach
 
 Detach the executing of test from the worker process. Currently, the test
 job will be executed with C<exec> perl function.
+
+=head4 use-local-public-ip
+
+If you are using home network that does not have Domain Name System (DNS) 
+or name server setup, you can specify the option C<use-local-public-ip> to
+find out the local public ip address of your machine that you start the
+L<prove>.  This option is boolean option and does not take argument.
+
+=head4 sync-type
+
+To distribute your project/program files to the worker machine, you can use the
+C<sync-type> option.  Currently, it only supports C<rsync> type.
+
+Example,
+
+   prove -PDistributed --distributed-type=SSH --hosts="192.168.1.100,192.168.1.101"\
+    --sync-type=rsync --use-local-public-ip -I lib -j2 --detach --recurse
+
+=head4 source-dir
+
+Source project/program files that you want to distribute to the worker machine.
+If it is not specified, the current directory is assumed.
+
+   prove -PDistributed --distributed-type=SSH --hosts="192.168.1.100,192.168.1.101" \
+   --sync-type=rsync --use-local-public-ip --source-dir=/my/home/project \
+   -I lib -j2 --detach --recurse
+
+=head4 destination-dir
+
+Destination directory on the worker machine that you want the project/program
+files to distribute to.  If it is not specified, the system will use 
+L<File::Temp::tempdir> to create a directory to be distributed to.
+
+Example,
+
+   prove -PDistributed --distributed-type=SSH --hosts="192.168.1.100,192.168.1.101" \
+   --sync-type=rsync --use-local-public-ip --destination-dir=/my/worker/home/project \
+   -I lib -j2 --detach --recurse
 
 =head3 Worker Specific Options
 
@@ -596,7 +634,10 @@ information please check out the test F<t/sample-tests/empty_string_problem>.
 
     ok('good=bad' =~ m/^.*?=.*/, 'test');
 
-    ok('test' =~ m//, 'this will failed before the previous regex match with a "?=" regex match. I have no way to reset back the previous regex change the regex engine unless I put it in its scope.');
+    ok('test' =~ m//, 'this will failed before the previous regex match ' . 
+                      'with a "?=" regex match. I have no way to reset ' .
+		      'back the previous regex change the regex engine ' .
+		      'unless I put it in its scope.');
 
 =head1 CAVEAT
 

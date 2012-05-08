@@ -23,11 +23,11 @@ TAP::Parser::SourceHandler::Worker - Stream TAP from an L<IO::Handle> or a GLOB.
 
 =head1 VERSION
 
-Version 0.01
+Version 0.08
 
 =cut
 
-$VERSION = '0.01';
+$VERSION = '0.08';
 
 =head3 C<@workers>
 
